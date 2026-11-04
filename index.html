@@ -656,3 +656,984 @@ b[data-t]{font-weight:inherit}
       "name": "After Effects",
       "color": "#8f7bff"
     },
+    {
+        "short": "Bl",
+      "name": "Blender",
+      "color": "#ff8a2a"
+    },
+    {
+      "short": "Ps",
+      "name": "Photoshop",
+      "color": "#4aa8ff"
+    },
+    {
+      "short": "Dv",
+      "name": "DaVinci Resolve",
+      "color": "#6ab0ff"
+    },
+    {
+      "short": "Cn",
+      "name": "Cinema 4D",
+      "color": "#e8e8ee"
+    }
+  ],
+  "process": [
+    {
+      "no": "01",
+      "title": "THE IDEA",
+      "text": "Mengembangkan konsep, mood board, dan visual storytelling dari nol."
+    },
+    {
+      "no": "02",
+      "title": "THE PLAN",
+      "text": "Menyusun storyboard, shot list, dan breakdown pekerjaan produksi."
+    },
+    {
+      "no": "03",
+      "title": "THE CRAFT",
+      "text": "Editing, compositing, dan eksekusi VFX frame demi frame."
+    },
+    {
+      "no": "04",
+      "title": "THE POLISH",
+      "text": "Color grading, sound sync, dan detail akhir sampai terasa nyata."
+    },
+    {
+      "no": "05",
+      "title": "THE FINAL FRAME",
+      "text": "Render, review, lalu rilis. Karya siap dirasakan penonton."
+    }
+  ],
+  "journey": [
+    {
+      "years": "2025 - NOW",
+      "role": "VFX Artist",
+      "place": "Freelance & Studio",
+      "text": "Mengerjakan shot VFX, compositing, dan environment untuk film & komersial."
+    },
+    {
+      "years": "2024",
+      "role": "VFX Internship",
+      "place": "Datang Digital Studio",
+      "text": "Belajar pipeline VFX studio dari tracking sampai final composite."
+    },
+    {
+      "years": "2022 - 2024",
+      "role": "Freelance Editor",
+      "place": "Video, photography & film",
+      "text": "Mengedit film pendek, video klien, dan konten kampanye."
+    },
+    {
+      "years": "2020 - 2022",
+      "role": "Content Creator",
+      "place": "Sengit Studio",
+      "text": "Memproduksi konten video dan visual untuk berbagai platform."
+    }
+  ],
+  "wins": [
+    {
+      "title": "Datang Digital Studio",
+      "text": "Lulus program magang VFX"
+    },
+    {
+      "title": "Festival Film Pelajar",
+      "text": "Best Short Film 2023"
+    },
+    {
+      "title": "Kompetisi Film Nasional",
+      "text": "Juara 1 tahun 2025"
+    }
+  ],
+  "contact": {
+    "email": "hello.renando@gmail.com",
+    "instagram": "@renan.visual",
+    "phone": "+62 812-0000-0000",
+    "location": "Indonesia, Indonesia",
+    "whatsapp": "6281200000000"
+  }
+};
+</script>
+<script>/**
+ * PixelScatter - efek foto pecah jadi pixel lalu terhambur saat disentuh.
+ *  - Mouse/pen: pixel terhambur dari titik sentuh begitu kursor menyentuh bagian foto
+ *    (area transparan diabaikan). Saat kursor keluar, pixel terbang kembali & menyusun ulang foto.
+ *  - Sentuh (touch): terhambur saat ditekan, otomatis kembali setelah ~1.8 detik.
+ *  - Selagi terhambur, pixel di dekat kursor ikut menyingkir (interaktif).
+ *
+ *  new PixelScatter(wrapElement, imgElement, { size: 4 })
+ */
+(function (global) {
+  'use strict';
+
+  class PixelScatter {
+    constructor(wrap, img, opts = {}) {
+      this.wrap = wrap;
+      this.img = img;
+      this.opt = Object.assign({ size: 0, padX: 0.9, padY: 0.45, touchHold: 1800 }, opts);
+      this.canvas = document.createElement('canvas');
+      this.ctx = this.canvas.getContext('2d');
+      wrap.appendChild(this.canvas);
+
+      this.mode = 'idle';           // idle | scatter | return
+      this.parts = [];
+      this.px = -999; this.py = -999; // pointer (koordinat foto)
+      this.hover = false;
+      this.raf = 0; this.last = 0; this.time = 0;
+      this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      this._bind();
+      const boot = () => this.build();
+      if (img.complete && img.naturalWidth) boot(); else img.addEventListener('load', boot, { once: true });
+
+      let rt;
+      addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => this.build(), 200); });
+    }
+
+    /* ---------- persiapan partikel dari gambar ---------- */
+    build() {
+      const w = Math.round(this.wrap.clientWidth), h = Math.round(this.wrap.clientHeight);
+      if (!w || !h) return;
+      this.mode = 'idle'; this.wrap.classList.remove('scattering');
+      cancelAnimationFrame(this.raf); this.raf = 0;
+
+      const size = this.opt.size || (w < 340 ? 3 : w < 520 ? 4 : 5);
+      this.s = size; this.w = w; this.h = h;
+      this.padX = Math.round(w * this.opt.padX); this.padY = Math.round(h * this.opt.padY);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); this.dpr = dpr;
+
+      const cv = this.canvas;
+      cv.width = (w + this.padX * 2) * dpr; cv.height = (h + this.padY * 2) * dpr;
+      cv.style.width = (w + this.padX * 2) + 'px'; cv.style.height = (h + this.padY * 2) + 'px';
+      cv.style.left = -this.padX + 'px'; cv.style.top = -this.padY + 'px';
+      cv.style.visibility = 'hidden';
+
+      // gambar ke kanvas offscreen dengan ukuran tampilan (object-fit: contain) + fade bawah seperti CSS mask
+      const off = document.createElement('canvas'); off.width = w; off.height = h;
+      const o = off.getContext('2d', { willReadFrequently: true });
+      const iw = this.img.naturalWidth, ih = this.img.naturalHeight;
+      const sc = Math.min(w / iw, h / ih), dw = iw * sc, dh = ih * sc;
+      const dx = (w - dw) / 2, dy = (h - dh) / 2;
+      o.drawImage(this.img, dx, dy, dw, dh);
+      o.globalCompositeOperation = 'destination-in';
+      const g = o.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#000'); g.addColorStop(.82, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      o.fillStyle = g; o.fillRect(0, 0, w, h);
+      this.off = off;
+
+      let data = null;
+      try { data = o.getImageData(0, 0, w, h).data; } catch (e) { data = null; } // canvas tainted (file://)
+
+      const cols = Math.ceil(w / size), rows = Math.ceil(h / size);
+      this.cols = cols; this.rows = rows;
+      this.mask = new Uint8Array(cols * rows);
+      const parts = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * size, y = r * size;
+          let color = null, a = 255;
+          if (data) {
+            const cx = Math.min(w - 1, x + (size >> 1)), cy = Math.min(h - 1, y + (size >> 1));
+            const i = (cy * w + cx) * 4; a = data[i + 3];
+            if (a < 28) continue;
+            color = 'rgb(' + data[i] + ',' + data[i + 1] + ',' + data[i + 2] + ')';
+          }
+          this.mask[r * cols + c] = 1;
+          parts.push({ hx: x, hy: y, x, y, vx: 0, vy: 0, c: color, a: a / 255, t: 0, m: 0, seed: Math.random() * 6.283, k: 0, z: .65 + Math.random() * .7 });
+        }
+      }
+      this.parts = parts;
+      this._drawIdle();
+    }
+
+    _drawIdle() { this.canvas.style.visibility = 'hidden'; }
+
+    /* ---------- event ---------- */
+    _bind() {
+      const wrap = this.wrap;
+      const local = (e) => {
+        const r = wrap.getBoundingClientRect();
+        return [(e.clientX - r.left) * (this.w / r.width), (e.clientY - r.top) * (this.h / r.height)];
+      };
+      this._touchTimer = 0;
+
+      wrap.addEventListener('pointermove', (e) => {
+        if (this.reduced || !this.parts.length) return;
+        const [x, y] = local(e); this.px = x; this.py = y; this.hover = true;
+        if (e.pointerType === 'touch') return;
+        if (this.mode !== 'scatter' && this._solid(x, y)) this.explode(x, y);
+      });
+      wrap.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') this.hover = true; });
+      wrap.addEventListener('pointerleave', (e) => {
+        this.hover = false; this.px = this.py = -999;
+        if (e.pointerType !== 'touch' && this.mode === 'scatter') this.gather();
+      });
+      wrap.addEventListener('pointerdown', (e) => {
+        if (this.reduced || !this.parts.length) return;
+        const [x, y] = local(e); this.px = x; this.py = y;
+        if (e.pointerType === 'touch') {
+          this.explode(x, y);
+          clearTimeout(this._touchTimer);
+          this._touchTimer = setTimeout(() => { this.px = this.py = -999; this.gather(); }, this.opt.touchHold);
+        } else if (this.mode !== 'scatter') this.explode(x, y);
+      });
+      wrap.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    _solid(x, y) {
+      if (!this.mask) return true;
+      const c = Math.floor(x / this.s), r = Math.floor(y / this.s);
+      if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) return false;
+      return this.mask[r * this.cols + c] === 1;
+    }
+
+    /* ---------- aksi ---------- */
+    explode(px, py) {
+      if (!this.parts.length) return;
+      const maxD = Math.hypot(this.w, this.h) * .75;
+      const scale = this.w / 480; // kecepatan proporsional ukuran foto
+      for (const p of this.parts) {
+        // posisi sekarang dipertahankan (agar re-explode terasa menyambung)
+        const dx = p.x - px, dy = p.y - py, d = Math.hypot(dx, dy) || 1;
+        const near = 1 - Math.min(d / maxD, 1);
+        const ang = Math.atan2(dy, dx) + (Math.random() - .5) * 1.1;
+        const sp = (160 + Math.random() * 520) * (.55 + near * .9) * scale;
+        p.vx = Math.cos(ang) * sp + 70 * scale + (Math.random() - .3) * 70 * scale; // angin ke kanan
+        p.vy = Math.sin(ang) * sp - (60 + Math.random() * 160) * scale;                // sedikit naik
+        p.t = -(d / maxD) * .42;     // gelombang: dekat titik sentuh pecah lebih dulu
+        p.m = 1;
+      }
+      this.mode = 'scatter';
+      this._start();
+    }
+
+    gather() {
+      if (this.mode === 'idle') return;
+      for (const p of this.parts) { p.m = 2; p.t = -Math.random() * .28; p.k = 50 + Math.random() * 60; }
+      this.mode = 'return';
+      this._start();
+    }
+
+    _start() {
+      this.wrap.classList.add('scattering');
+      this.canvas.style.visibility = 'visible';
+      if (!this.raf) { this.last = performance.now(); this.raf = requestAnimationFrame((t) => this._tick(t)); }
+    }
+
+    /* ---------- loop ---------- */
+    _tick(now) {
+      let dt = (now - this.last) / 1000; this.last = now;
+      dt = Math.min(dt, 1 / 30); this.time += dt;
+      const parts = this.parts, scale = this.w / 480;
+      const drag = Math.exp(-1.9 * dt);
+      const R = 95 * scale, R2 = R * R;
+      let settled = 0;
+
+      for (const p of parts) {
+        if (p.t < 0) { p.t += dt; continue; }
+        p.t += dt;
+        if (p.m === 1) {
+          p.vx *= drag; p.vy *= drag;
+          // melayang pelan seperti debu
+          p.vx += Math.sin(this.time * 1.7 + p.seed) * 22 * scale * dt;
+          p.vy += (Math.cos(this.time * 1.3 + p.seed * 1.7) * 22 - 14) * scale * dt;
+          // menyingkir dari kursor
+          if (this.hover) {
+            const dx = p.x - this.px, dy = p.y - this.py, d2 = dx * dx + dy * dy;
+            if (d2 < R2 && d2 > .01) { const d = Math.sqrt(d2), f = (1 - d / R) * 1400 * scale * dt; p.vx += dx / d * f; p.vy += dy / d * f; }
+          }
+          p.x += p.vx * dt; p.y += p.vy * dt;
+        } else if (p.m === 2) {
+          // pegas kembali ke posisi asal
+          const k = p.k, c = 2 * Math.sqrt(k) * .78;
+          p.vx += ((p.hx - p.x) * k - p.vx * c) * dt;
+          p.vy += ((p.hy - p.y) * k - p.vy * c) * dt;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          if (Math.abs(p.hx - p.x) < .4 && Math.abs(p.hy - p.y) < .4 && Math.abs(p.vx) + Math.abs(p.vy) < 6) { p.x = p.hx; p.y = p.hy; settled++; }
+        }
+      }
+
+      this._render();
+
+      if (this.mode === 'return' && settled === parts.length) {
+        this.mode = 'idle'; this.raf = 0;
+        this.wrap.classList.remove('scattering');
+        this.canvas.style.visibility = 'hidden';
+        // jika kursor masih di atas foto, langsung pecah lagi
+        if (this.hover && this._solid(this.px, this.py)) this.explode(this.px, this.py);
+        return;
+      }
+      this.raf = requestAnimationFrame((t) => this._tick(t));
+    }
+
+    _render() {
+      const ctx = this.ctx, s = this.s, ox = this.padX, oy = this.padY, dpr = this.dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const parts = this.parts, off = this.off;
+      let lastC = '';
+      for (const p of parts) {
+        const sz = p.m === 1 && p.t > 0 ? s * (p.z * (1 - Math.min(p.t * .12, .35))) : s;
+        if (p.c) {
+          if (p.c !== lastC) { ctx.fillStyle = p.c; lastC = p.c; }
+          ctx.fillRect(Math.round(ox + p.x), Math.round(oy + p.y), sz, sz);
+        } else {
+          ctx.drawImage(off, p.hx, p.hy, s, s, Math.round(ox + p.x), Math.round(oy + p.y), sz, sz); // fallback bila canvas tainted
+        }
+      }
+    }
+  }
+
+  global.PixelScatter = PixelScatter;
+})(window);
+</script>
+<script>window.RENANDO_EDIT=/[?&]edit(=|&|$)/.test(location.search);</script><script>/**
+ * RenandoEditor - panel edit di dalam halaman.
+ * Ganti foto profil, gambar tiap karya, judul karya, intro, dan kontak tanpa menyentuh kode.
+ * Perubahan disimpan di browser ini (localStorage). Tombol "Reset" mengembalikan ke bawaan.
+ */
+(function (global) {
+  'use strict';
+  const KEY = 'renando-overrides-v1';
+
+  function own() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+  function load() {
+    const B = window.RENANDO_BAKED ? JSON.parse(JSON.stringify(window.RENANDO_BAKED)) : null;
+    if (window.RENANDO_EDIT === false) return B || {};
+    if (window.RENANDO_EDIT === true) return own() || B || {};
+    if (B) return B;
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+  function save(o) { try { localStorage.setItem(KEY, JSON.stringify(o)); return true; } catch (e) { return false; } }
+
+  function readImage(file, maxW, maxH, type) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onerror = reject;
+      fr.onload = () => {
+        const im = new Image();
+        im.onerror = reject;
+        im.onload = () => {
+          const s = Math.min(1, maxW / im.naturalWidth, maxH / im.naturalHeight);
+          const c = document.createElement('canvas');
+          c.width = Math.round(im.naturalWidth * s); c.height = Math.round(im.naturalHeight * s);
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          resolve(type === 'png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', .86));
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  let DEFS = {};
+  function toMarkup(el) {
+    const c = el.cloneNode(true);
+    c.querySelectorAll('br').forEach((b) => b.replaceWith('\n'));
+    c.querySelectorAll('em').forEach((e) => e.replaceWith('[[' + e.textContent + ']]'));
+    c.querySelectorAll('i').forEach((e) => e.replaceWith('{{' + e.textContent + '}}'));
+    c.querySelectorAll('b').forEach((e) => e.replaceWith('**' + e.textContent + '**'));
+    return c.textContent.replace(/\s*\n\s*/g, '\n').replace(/[ \t]+/g, ' ').trim();
+  }
+  const GROUPS = { logo: 'Logo', nav: 'Menu atas', hero: 'Beranda (hero)', works: 'Karya', clients: 'Klien', awards: 'Penghargaan', raw: 'Before / After', about: 'Tentang', journey: 'Perjalanan', contact: 'Kontak', form: 'Formulir kontak', footer: 'Footer' };
+
+  const getp = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+  function setp(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => a[k], o); t[last] = v; }
+  const LISTS = [
+    ['profile.stats', 'Angka statistik hero', [['n', 'Angka'], ['suffix', 'Akhiran'], ['label', 'Keterangan']], () => ({ n: 0, suffix: '+', label: '' })],
+    ['clients', 'Klien / kolaborator', [['name', 'Nama'], ['logo', 'Logo (gambar, opsional)', 'img']], () => ({ name: 'NAMA KLIEN', color: '#e8e8ee', font: 'Inter' })],
+    ['awards', 'Penghargaan', [['title', 'Penghargaan'], ['sub', 'Penyelenggara'], ['year', 'Tahun']], () => ({ title: 'Penghargaan baru', sub: '', year: new Date().getFullYear() })],
+    ['education', 'Pendidikan & skill', [['title', 'Judul'], ['text', 'Keterangan']], () => ({ title: '', text: '' })],
+    ['process', 'Proses kerja', [['no', 'Nomor'], ['title', 'Judul'], ['text', 'Keterangan']], () => ({ no: '06', title: '', text: '' })],
+    ['journey', 'Riwayat pekerjaan', [['years', 'Tahun'], ['role', 'Posisi'], ['place', 'Tempat'], ['text', 'Deskripsi']], () => ({ years: '', role: '', place: '', text: '' })],
+    ['software', 'Ikon software', [['short', 'Singkatan'], ['name', 'Nama'], ['color', 'Warna (mis. #ff8a2a)']], () => ({ short: '', name: '', color: '#e8e8ee' })],
+    ['wins', 'Milestone', [['title', 'Judul'], ['text', 'Keterangan']], () => ({ title: '', text: '' })]
+  ];
+  const STRLISTS = [['toolkit', 'Toolkit (satu per baris)'], ['categories', 'Kategori filter karya (satu per baris, baris pertama harus: Semua)']];
+  const EXTRA = { 'contact.lbl.email': 'EMAIL', 'contact.lbl.instagram': 'INSTAGRAM', 'contact.lbl.phone': 'WHATSAPP / TELEPON', 'contact.lbl.location': 'LOKASI' };
+
+  /* terapkan perubahan tersimpan ke data sebelum dirender */
+  function apply(data) {
+    const o = load();
+    DEFS = {};
+    document.querySelectorAll('[data-t]').forEach((el) => { if (!(el.dataset.t in DEFS)) DEFS[el.dataset.t] = toMarkup(el); });
+    Object.keys(EXTRA).forEach((k) => { DEFS[k] = EXTRA[k]; });
+    window.__SITE = { texts: o.texts || {}, settings: { siteTitle: o.siteTitle || '' }, content: null, ba: o.ba || {}, showreel: o.showreel || '' };
+    if (o.content) Object.keys(o.content).forEach((p) => { try { setp(data, p, o.content[p]); } catch (x) { /* abaikan */ } });
+    if (o.intro) data.profile.intro = o.intro;
+    if (o.contact) Object.assign(data.contact, o.contact);
+    if (o.projects) data.projects.forEach((p) => { const e = o.projects[p.id]; if (e) { if (e.title) p.title = e.title; if (e.image) p.image = e.image; if (e.cat) p.cat = e.cat; if (e.link !== undefined) p.link = e.link; if (e.type != null && e.type !== '') p.type = e.type; if (e.year !== undefined && e.year !== '') p.year = e.year; } });
+    if (o.photo) { const img = document.getElementById('profileImg'); if (img) img.src = o.photo; }
+    return data;
+  }
+
+  function el(tag, attrs, ...kids) {
+    const n = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => k === 'class' ? n.className = v : k === 'text' ? n.textContent = v : n.setAttribute(k, v));
+    kids.forEach((k) => n.append(k));
+    return n;
+  }
+
+  function mount(data) {
+    if (window.RENANDO_READER || window.RENANDO_EDIT === false) return;
+    const o = load();
+    o.projects = o.projects || {}; o.contact = o.contact || {};
+    const pending = { photo: o.photo || null, projects: JSON.parse(JSON.stringify(o.projects)) };
+
+    const css = document.createElement('style');
+    css.textContent = `
+    .ed-fab{position:fixed;left:clamp(14px,2.4vw,34px);bottom:clamp(14px,2.4vw,34px);z-index:80;background:#fff;color:#07070a;font:700 .72rem/1 var(--body,sans-serif);letter-spacing:.12em;padding:14px 18px;border-radius:99px;box-shadow:0 10px 30px -8px rgba(0,0,0,.7);cursor:pointer;border:0}
+    .ed-fab:hover{background:var(--red2,#ff4d5e);color:#fff}
+    .ed-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);z-index:90;background:#0d0d12;border-left:1px solid rgba(255,255,255,.12);color:#f4f4f6;font:400 .85rem/1.45 var(--body,sans-serif);transform:translateX(105%);transition:transform .3s;display:flex;flex-direction:column}
+    .ed-panel.open{transform:none}
+    .ed-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.1);font-weight:700;letter-spacing:.1em;font-size:.75rem}
+    .ed-body{overflow:auto;padding:6px 18px 18px;flex:1}
+    .ed-body h4{font-size:.66rem;letter-spacing:.18em;color:#ff6b7d;margin:22px 0 10px}
+    .ed-body label{display:block;font-size:.7rem;color:#9a9aa6;margin:10px 0 4px}
+    .ed-body input[type=text],.ed-body textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#fff;padding:9px 11px;font:inherit;border-radius:6px}
+    .ed-body input[type=file]{width:100%;font-size:.75rem;color:#cfcfd6}
+    .ed-body input[type=file]::file-selector-button{background:#e0313f;color:#fff;border:0;padding:8px 12px;margin-right:10px;border-radius:6px;cursor:pointer;font:inherit;font-weight:600}
+    .ed-prev{display:block;margin-top:8px;max-height:120px;max-width:100%;border-radius:6px;background:repeating-conic-gradient(#222 0 25%,#2c2c2c 0 50%) 0 0/16px 16px}
+    .ed-row{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 12px 12px;margin-bottom:10px}
+    .ed-foot{display:flex;gap:10px;padding:14px 18px;border-top:1px solid rgba(255,255,255,.1)}
+    .ed-foot button{flex:1;padding:12px;border:0;border-radius:8px;font:700 .75rem var(--body,sans-serif);cursor:pointer;letter-spacing:.08em}
+    .ed-save{background:#e0313f;color:#fff}.ed-reset{background:rgba(255,255,255,.08);color:#fff}
+    .ed-msg{font-size:.75rem;color:#9fffcf;min-height:1.2em;padding:0 18px 10px}.ed-msg.err{color:#ff8a8a}
+    .ed-mini{background:rgba(255,255,255,.08);color:#fff;border:0;border-radius:6px;padding:7px 12px;font:600 .72rem var(--body,sans-serif);cursor:pointer;margin:8px 8px 4px 0}
+    .ed-mini:hover{background:#e0313f}
+    .ed-note{font-size:.72rem;color:#9a9aa6;margin-bottom:6px}
+    .ed-det{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;margin-bottom:8px}
+    .ed-det summary{cursor:pointer;font-weight:600;font-size:.8rem;padding:4px 0}
+    .ed-x{background:none;border:0;color:#fff;font-size:1.3rem;cursor:pointer}
+    .card .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+    .card:hover .thumb img{transform:scale(1.07)}
+    `;
+    document.head.append(css);
+
+    const fab = el('button', { class: 'ed-fab', type: 'button', text: 'EDIT' });
+    const panel = el('aside', { class: 'ed-panel', 'aria-label': 'Panel edit' });
+    const body = el('div', { class: 'ed-body' });
+    const msg = el('div', { class: 'ed-msg' });
+
+    // foto profil
+    const photoIn = el('input', { type: 'file', accept: 'image/*', id: 'ed-photo' });
+    const photoPrev = el('img', { class: 'ed-prev', alt: '' });
+    photoPrev.src = pending.photo || document.getElementById('profileImg').src;
+    photoIn.addEventListener('change', async () => {
+      if (!photoIn.files[0]) return;
+      try { pending.photo = await readImage(photoIn.files[0], 900, 1200, 'png'); photoPrev.src = pending.photo; msg.className = 'ed-msg'; msg.textContent = 'Foto dipilih. Tekan Simpan.'; }
+      catch (e) { msg.className = 'ed-msg err'; msg.textContent = 'Gambar tidak dapat dibaca.'; }
+    });
+    body.append(el('h4', { text: 'FOTO PROFIL' }),
+      el('label', { for: 'ed-photo', text: 'Pilih foto (PNG tanpa latar paling bagus)' }), photoIn, photoPrev);
+
+    // teks
+    const intro = el('textarea', { id: 'ed-intro', rows: '3' }); intro.value = data.profile.intro;
+    body.append(el('h4', { text: 'TEKS' }), el('label', { for: 'ed-intro', text: 'Kalimat pembuka di hero' }), intro);
+
+    const cf = {};
+    [['email', 'Email'], ['instagram', 'Instagram'], ['phone', 'Telepon (tampilan)'], ['whatsapp', 'Nomor WhatsApp (angka saja, mis. 6281234567890)'], ['location', 'Lokasi']].forEach(([k, l]) => {
+      const i = el('input', { type: 'text', id: 'ed-' + k }); i.value = data.contact[k] || ''; cf[k] = i;
+      body.append(el('label', { for: 'ed-' + k, text: l }), i);
+    });
+
+    // judul tab + teks halaman
+    const stI = el('input', { type: 'text', id: 'ed-sitetitle' }); stI.value = o.siteTitle || document.title;
+    body.append(el('label', { for: 'ed-sitetitle', text: 'Judul tab browser' }), stI);
+    body.append(el('h4', { text: 'TEKS HALAMAN' }),
+      el('div', { class: 'ed-note', text: 'Gaya: [[kata]] pink, {{kata}} merah, **kata** tebal. Kosongkan untuk teks bawaan.' }));
+    const tI = {}; const grp = {};
+    Object.keys(DEFS).forEach((k) => { (grp[k.split('.')[0]] = grp[k.split('.')[0]] || []).push(k); });
+    Object.keys(grp).forEach((g) => {
+      const d = el('details', { class: 'ed-det' }, el('summary', { text: GROUPS[g] || g }));
+      grp[g].forEach((k) => {
+        const cur = (o.texts && typeof o.texts[k] === 'string') ? o.texts[k] : DEFS[k];
+        const f = (cur.includes('\n') || cur.length > 60) ? el('textarea', { id: 'ed-x-' + k, rows: '3' }) : el('input', { type: 'text', id: 'ed-x-' + k });
+        f.value = cur; tI[k] = f;
+        d.append(el('label', { for: 'ed-x-' + k, text: k }), f);
+      });
+      body.append(d);
+    });
+
+    // media tambahan
+    const ba = { real: o.ba && o.ba.real || '', raw: o.ba && o.ba.raw || '' };
+    body.append(el('h4', { text: 'MEDIA: SHOWREEL & BEFORE / AFTER' }));
+    const srI = el('input', { type: 'text', id: 'ed-showreel', placeholder: 'https://youtube.com/...' }); srI.value = o.showreel || '';
+    body.append(el('label', { for: 'ed-showreel', text: 'Link tombol PUTAR SHOWREEL (YouTube/Drive/dll)' }), srI);
+    [['raw', 'Gambar RAW (sebelum)'], ['real', 'Gambar REAL (sesudah)']].forEach(([k, l]) => {
+      const f = el('input', { type: 'file', accept: 'image/*', id: 'ed-ba-' + k }); const pv = el('img', { class: 'ed-prev', alt: '' }); if (ba[k]) pv.src = ba[k]; else pv.hidden = true;
+      f.addEventListener('change', async () => { if (!f.files[0]) return; try { ba[k] = await readImage(f.files[0], 960, 600, 'jpg'); pv.src = ba[k]; pv.hidden = false; msg.className = 'ed-msg'; msg.textContent = 'Gambar dipilih. Tekan Simpan.'; } catch (e) { msg.className = 'ed-msg err'; msg.textContent = 'Gambar tidak dapat dibaca.'; } });
+      const cl = el('button', { type: 'button', class: 'ed-mini', text: 'Pakai gambar bawaan' }); cl.addEventListener('click', () => { ba[k] = ''; pv.hidden = true; });
+      body.append(el('label', { for: 'ed-ba-' + k, text: l }), f, pv, cl);
+    });
+
+    // daftar konten
+    body.append(el('h4', { text: 'DAFTAR (PENGHARGAAN, RIWAYAT, DLL)' }));
+    const work = {};
+    LISTS.forEach(([path, label, fields, blank]) => {
+      const arr = JSON.parse(JSON.stringify(getp(data, path) || [])); work[path] = arr;
+      const det = el('details', { class: 'ed-det' }, el('summary', { text: label }));
+      const box = el('div'); det.append(box);
+      const draw = () => {
+        box.textContent = '';
+        arr.forEach((it, i) => {
+          const row = el('div', { class: 'ed-row' });
+          fields.forEach(([k, l]) => {
+            const id = 'ed-l-' + path + '-' + i + '-' + k;
+            if (fields.find((f) => f[0] === k)[2] === 'img') {
+              const fi = el('input', { type: 'file', accept: 'image/*', id }); const pv = el('img', { class: 'ed-prev', alt: '' }); if (it[k]) pv.src = it[k]; else pv.hidden = true;
+              fi.addEventListener('change', async () => { if (!fi.files[0]) return; try { it[k] = await readImage(fi.files[0], 400, 160, 'png'); pv.src = it[k]; pv.hidden = false; } catch (e) { /* abaikan */ } });
+              const cl = el('button', { type: 'button', class: 'ed-mini', text: 'Hapus gambar' }); cl.addEventListener('click', () => { delete it[k]; pv.hidden = true; });
+              row.append(el('label', { for: id, text: l }), fi, pv, cl); return;
+            }
+            const inp = k === 'text' ? el('textarea', { id, rows: '3' }) : el('input', { type: 'text', id });
+            inp.value = it[k] == null ? '' : it[k];
+            inp.addEventListener('input', () => { it[k] = ((k === 'n' || k === 'year') && inp.value !== '' && !isNaN(inp.value)) ? Number(inp.value) : inp.value; });
+            row.append(el('label', { for: id, text: l }), inp);
+          });
+          const rm = el('button', { type: 'button', class: 'ed-mini', text: 'Hapus item' });
+          rm.addEventListener('click', () => { arr.splice(i, 1); draw(); });
+          row.append(rm); box.append(row);
+        });
+        const add = el('button', { type: 'button', class: 'ed-mini', text: '+ Tambah' });
+        add.addEventListener('click', () => { arr.push(blank()); draw(); });
+        box.append(add);
+      };
+      draw(); body.append(det);
+    });
+    STRLISTS.forEach(([path, label]) => {
+      const t = el('textarea', { id: 'ed-s-' + path, rows: '4' }); t.value = (getp(data, path) || []).join('\n'); work[path] = null;
+      body.append(el('label', { for: 'ed-s-' + path, text: label }), t); work['__s' + path] = t;
+    });
+
+    // karya
+    body.append(el('h4', { text: 'KARYA (JUDUL, JENIS, TAHUN & GAMBAR)' }));
+    const titles = {}, types = {}, years = {}, cats = {}, links = {};
+    data.projects.forEach((p) => {
+      const t = el('input', { type: 'text', id: 'ed-t' + p.id }); t.value = p.title; titles[p.id] = t;
+      const f = el('input', { type: 'file', accept: 'image/*', id: 'ed-f' + p.id });
+      const pv = el('img', { class: 'ed-prev', alt: '' }); if (p.image) pv.src = p.image; else pv.hidden = true;
+      f.addEventListener('change', async () => {
+        if (!f.files[0]) return;
+        try { const d = await readImage(f.files[0], 960, 720, 'jpg'); (pending.projects[p.id] = pending.projects[p.id] || {}).image = d; pv.src = d; pv.hidden = false; msg.className = 'ed-msg'; msg.textContent = 'Gambar dipilih. Tekan Simpan.'; }
+        catch (e) { msg.className = 'ed-msg err'; msg.textContent = 'Gambar tidak dapat dibaca.'; }
+      });
+      const ty = el('input', { type: 'text', id: 'ed-ty' + p.id }); ty.value = p.type || ''; types[p.id] = ty;
+      const ca = el('input', { type: 'text', id: 'ed-ca' + p.id }); ca.value = p.cat || ''; cats[p.id] = ca;
+      const lk = el('input', { type: 'text', id: 'ed-lk' + p.id, placeholder: 'https://... (video/link karya)' }); lk.value = p.link || ''; links[p.id] = lk;
+      const yr = el('input', { type: 'text', id: 'ed-yr' + p.id }); yr.value = p.year || ''; years[p.id] = yr;
+      body.append(el('div', { class: 'ed-row' }, el('label', { for: 'ed-t' + p.id, text: 'Judul' }), t, el('label', { for: 'ed-ty' + p.id, text: 'Jenis (mis. Short Film)' }), ty, el('label', { for: 'ed-ca' + p.id, text: 'Kategori (harus sama dengan daftar filter, mis. VFX)' }), ca, el('label', { for: 'ed-yr' + p.id, text: 'Tahun' }), yr, el('label', { for: 'ed-lk' + p.id, text: 'Link karya (klik kartu membuka link)' }), lk, el('label', { for: 'ed-f' + p.id, text: 'Gambar / thumbnail' }), f, pv));
+    });
+
+    const saveB = el('button', { class: 'ed-save', type: 'button', text: 'SIMPAN' });
+    const copyB = el('button', { class: 'ed-reset', type: 'button', text: 'SALIN DATA' });
+    copyB.addEventListener('click', async () => { const t = localStorage.getItem(KEY) || '{}'; try { await navigator.clipboard.writeText(t); msg.className = 'ed-msg'; msg.textContent = 'Data edit disalin. Kirim/tempel ke Claude agar masuk ke link Pembaca.'; } catch (e) { window.prompt('Salin data ini:', t); } });
+    const pubB = el('button', { class: 'ed-reset', type: 'button', text: 'PUBLIKASI' });
+    if (window.RENANDO_EDIT === true) {
+      const SS = { get: (k) => { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* abaikan */ } } };
+      pubB.addEventListener('click', async () => {
+        const repo = window.prompt('Repositori GitHub (format: namaakun/namarepo):', SS.get('gh-repo') || ''); if (!repo) return;
+        const tok = window.prompt('Token GitHub (izin: Contents - Read and write). Tidak disimpan permanen:', SS.get('gh-tok') || ''); if (!tok) return;
+        SS.set('gh-repo', repo.trim()); SS.set('gh-tok', tok.trim());
+        const url = 'https://api.github.com/repos/' + repo.trim() + '/contents/site-data.json';
+        const H = { Authorization: 'Bearer ' + tok.trim(), Accept: 'application/vnd.github+json' };
+        msg.className = 'ed-msg'; msg.textContent = 'Mengirim ke GitHub...';
+        try {
+          const json = localStorage.getItem(KEY) || '{}';
+          const b64 = btoa(unescape(encodeURIComponent(json)));
+          let sha; const g = await fetch(url, { headers: H }); if (g.ok) sha = (await g.json()).sha; else if (g.status !== 404) throw new Error('Cek repositori/token (kode ' + g.status + ')');
+          const r = await fetch(url, { method: 'PUT', headers: H, body: JSON.stringify({ message: 'Update isi situs', content: b64, sha }) });
+          if (!r.ok) throw new Error('Gagal (kode ' + r.status + '). Pastikan token punya izin Contents: Read and write.');
+          msg.textContent = 'Berhasil dipublikasikan. Situs ikut berubah dalam 1-2 menit.';
+        } catch (e) { msg.className = 'ed-msg err'; msg.textContent = e.message || 'Gagal mengirim.'; }
+      });
+    }
+     const resetB = el('button', { class: 'ed-reset', type: 'button', text: 'RESET' });
+    const closeB = el('button', { class: 'ed-x', type: 'button', 'aria-label': 'Tutup', text: '×' });
+    panel.append(el('div', { class: 'ed-head' }, el('span', { text: 'EDIT HALAMAN' }), closeB), body, msg, el('div', { class: 'ed-foot' }, saveB, ...(window.RENANDO_EDIT === true ? [pubB] : [copyB]), resetB));
+    document.body.append(fab, panel);
+
+    fab.addEventListener('click', () => panel.classList.toggle('open'));
+    closeB.addEventListener('click', () => panel.classList.remove('open'));
+
+    saveB.addEventListener('click', () => {
+      const next = { intro: intro.value.trim(), contact: {}, projects: {}, photo: pending.photo, ba, showreel: srI.value.trim(), siteTitle: stI.value.trim(), texts: {} };
+      Object.keys(tI).forEach((k) => { const v = tI[k].value; if (v.trim() !== '' && v !== DEFS[k]) next.texts[k] = v; });
+      Object.keys(cf).forEach((k) => { next.contact[k] = cf[k].value.trim(); });
+      next.content = {};
+      LISTS.forEach(([path]) => { next.content[path] = work[path]; });
+      STRLISTS.forEach(([path]) => { next.content[path] = work['__s' + path].value.split('\n').map((x) => x.trim()).filter(Boolean); });
+      data.projects.forEach((p) => {
+        next.projects[p.id] = { type: types[p.id].value.trim(), year: years[p.id].value.trim() === '' ? '' : (isNaN(years[p.id].value) ? years[p.id].value.trim() : Number(years[p.id].value)), title: titles[p.id].value.trim(), cat: cats[p.id].value.trim(), link: links[p.id].value.trim(), image: (pending.projects[p.id] || {}).image || (load().projects || {})[p.id] && load().projects[p.id].image || '' };
+      });
+      if (!save(next)) { msg.className = 'ed-msg err'; msg.textContent = 'Penyimpanan penuh. Pakai gambar yang lebih kecil atau kurangi jumlah gambar.'; return; }
+      msg.className = 'ed-msg'; msg.textContent = 'Tersimpan. Memuat ulang...';
+      setTimeout(() => location.reload(), 350);
+    });
+
+    resetB.addEventListener('click', () => {
+      try { localStorage.removeItem(KEY); } catch (e) { /* abaikan */ }
+      msg.className = 'ed-msg'; msg.textContent = 'Dikembalikan ke bawaan. Memuat ulang...';
+      setTimeout(() => location.reload(), 350);
+    });
+  }
+
+  global.RenandoEditor = { apply, mount };
+})(window);
+</script>
+<script>(function () {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  /* ================= DATA (API -> fallback) ================= */
+  async function loadData() {
+    try {
+      try { const rr = await fetch('site-data.json', { cache: 'no-cache' }); if (rr.ok) window.RENANDO_BAKED = await rr.json(); } catch (e) { /* tanpa data tersimpan */ }
+      throw new Error('static');
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      window.__SITE = j;
+      return j.content;
+    } catch (e) {
+      console.info('API tidak tersedia, memakai data cadangan.');
+      return window.PORTFOLIO_FALLBACK;
+    }
+  }
+
+  /* ================= SENI PROSEDURAL (thumbnail & before/after) ================= */
+  function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  function bokeh(ctx, w, h, r, cols, n) {
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * h, s = 8 + r() * 46;
+      ctx.beginPath(); ctx.arc(x, y, s, 0, 7);
+      ctx.fillStyle = cols[(r() * cols.length) | 0]; ctx.globalAlpha = .08 + r() * .22; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function figure(ctx, w, h, o) {
+    const cx = w * o.x, base = h * 1.02, k = o.k * h / 400;
+    ctx.save(); ctx.translate(cx, base);
+    ctx.fillStyle = o.cloth; // bahu
+    ctx.beginPath(); ctx.moveTo(-150 * k, 0); ctx.quadraticCurveTo(-140 * k, -120 * k, -40 * k, -150 * k);
+    ctx.lineTo(40 * k, -150 * k); ctx.quadraticCurveTo(140 * k, -120 * k, 150 * k, 0); ctx.fill();
+    ctx.fillStyle = o.skin; ctx.fillRect(-18 * k, -185 * k, 36 * k, 50 * k); // leher
+    ctx.beginPath(); ctx.ellipse(0, -225 * k, 44 * k, 56 * k, 0, 0, 7); ctx.fill(); // wajah
+    ctx.fillStyle = o.hair; ctx.beginPath(); ctx.ellipse(0, -255 * k, 50 * k, 38 * k, 0, Math.PI, 0); ctx.fill();
+    if (o.long) { ctx.fillRect(-52 * k, -258 * k, 14 * k, 120 * k); ctx.fillRect(38 * k, -258 * k, 14 * k, 120 * k); }
+    ctx.restore();
+  }
+
+  function cityScene(ctx, w, h, mode) {
+    const r = rng(42), real = mode === 'real';
+    if (real) {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#07121f'); g.addColorStop(.55, '#0f3a55'); g.addColorStop(1, '#14879c');
+      ctx.fillStyle = g;
+    } else ctx.fillStyle = '#5b5f68';
+    ctx.fillRect(0, 0, w, h);
+
+    const horizon = h * .72, blds = [];
+    for (let layer = 0; layer < 3; layer++) {
+      let x = -20;
+      while (x < w) {
+        const bw = 50 + r() * 90 * (1 + layer * .15), bh = h * (.28 + r() * .5) * (1 - layer * .12);
+        blds.push({ x, w: bw, h: bh, layer, seed: r() }); x += bw * (.55 + r() * .5);
+      }
+    }
+    const neon = ['#ff3b6b', '#2ee6ff', '#ffb02e', '#a259ff', '#3dffb0'];
+    for (const b of blds) {
+      const y = horizon - b.h, a = 1 - b.layer * .28;
+      if (real) {
+        const g = ctx.createLinearGradient(0, y, 0, horizon);
+        const c = 18 + b.layer * 14;
+        g.addColorStop(0, `rgb(${c},${c + 12},${c + 30})`); g.addColorStop(1, `rgb(${c + 8},${c + 34},${c + 62})`);
+        ctx.fillStyle = g; ctx.fillRect(b.x, y, b.w, b.h);
+        const cols = Math.floor(b.w / 9), rows = Math.floor(b.h / 12);
+        for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+          if (r() > .42) continue;
+          ctx.fillStyle = r() > .72 ? neon[(r() * 5) | 0] : (r() > .5 ? '#ffd9a0' : '#8fe9ff');
+          ctx.globalAlpha = (.25 + r() * .6) * a; ctx.fillRect(b.x + 4 + i * 9, y + 6 + j * 12, 5, 6);
+        }
+        ctx.globalAlpha = 1;
+        if (b.layer === 0 && b.seed > .45) { // papan neon
+          ctx.fillStyle = neon[(b.seed * 40 | 0) % 5]; ctx.globalAlpha = .9;
+          ctx.fillRect(b.x + 8, y + b.h * .3, 18, b.h * .22); ctx.globalAlpha = 1;
+        }
+      } else {
+        ctx.fillStyle = `rgb(${96 + b.layer * 10},${100 + b.layer * 10},${108 + b.layer * 10})`;
+        ctx.fillRect(b.x, y, b.w, b.h);
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.strokeRect(b.x + .5, y + .5, b.w, b.h);
+        ctx.strokeStyle = 'rgba(255,255,255,.12)';
+        for (let yy = y + 14; yy < horizon; yy += 14) { ctx.beginPath(); ctx.moveTo(b.x, yy); ctx.lineTo(b.x + b.w, yy); ctx.stroke(); }
+      }
+    }
+    // jalan
+    if (real) {
+      const g = ctx.createLinearGradient(0, horizon, 0, h);
+      g.addColorStop(0, '#0d2c3d'); g.addColorStop(1, '#1b9fb0'); ctx.fillStyle = g;
+    } else ctx.fillStyle = '#6b6f78';
+    ctx.fillRect(0, horizon, w, h - horizon);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, horizon, w, h - horizon); ctx.clip();
+    for (let i = 0; i < 9; i++) { // zebra cross
+      const yy = h * .86 + i * 0, x0 = w * .3 + i * w * .055;
+      ctx.fillStyle = real ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.35)';
+      ctx.beginPath(); ctx.moveTo(x0, h * .84); ctx.lineTo(x0 + w * .035, h * .84); ctx.lineTo(x0 + w * .05, h * .93); ctx.lineTo(x0 + w * .012, h * .93); ctx.fill();
+    }
+    ctx.restore();
+    if (real) {
+      // pantulan neon di jalan
+      for (let i = 0; i < 26; i++) { ctx.fillStyle = neon[(r() * 5) | 0]; ctx.globalAlpha = .12; ctx.fillRect(r() * w, horizon + r() * (h - horizon), 3 + r() * 6, 20 + r() * 50); }
+      ctx.globalAlpha = 1;
+      const fog = ctx.createLinearGradient(0, horizon - 60, 0, horizon + 20);
+      fog.addColorStop(0, 'rgba(60,200,230,0)'); fog.addColorStop(.6, 'rgba(60,200,230,.25)'); fog.addColorStop(1, 'rgba(60,200,230,0)');
+      ctx.fillStyle = fog; ctx.fillRect(0, horizon - 60, w, 80);
+      ctx.fillStyle = '#ff3340'; ctx.beginPath(); ctx.arc(w * .56, h * .46, 9, 0, 7); ctx.fill(); // lampu merah
+      const gl = ctx.createRadialGradient(w * .56, h * .46, 2, w * .56, h * .46, 60);
+      gl.addColorStop(0, 'rgba(255,50,64,.6)'); gl.addColorStop(1, 'rgba(255,50,64,0)');
+      ctx.fillStyle = gl; ctx.fillRect(w * .56 - 60, h * .46 - 60, 120, 120);
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,.2)'; // grid lantai
+      for (let i = 0; i < 12; i++) { ctx.beginPath(); ctx.moveTo(w / 2, horizon); ctx.lineTo(i * w / 11, h); ctx.stroke(); }
+    }
+  }
+
+  function paintTheme(cv, theme, W = 640, H = 400) {
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d'), r = rng(theme.length * 977 + 13);
+    const bg = (a, b) => { const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, a); g.addColorStop(1, b); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); };
+    switch (theme) {
+      case 'warm':
+        bg('#f0d6cc', '#8a5a58'); bokeh(ctx, W, H, r, ['#fff', '#ffb8a0', '#ffd27a'], 26);
+        figure(ctx, W, H, { x: .5, k: 1.15, skin: '#e7b49c', cloth: '#f4ece4', hair: '#2a1a16' }); break;
+      case 'red':
+        bg('#8a1d26', '#220609'); bokeh(ctx, W, H, r, ['#ff5a66', '#ff9a8a'], 22);
+        figure(ctx, W, H, { x: .52, k: 1.2, skin: '#c98f78', cloth: '#1a0c0e', hair: '#0e0607', long: true }); break;
+      case 'city': cityScene(ctx, W, H, 'real'); break;
+      case 'amber':
+        bg('#3b1d0a', '#e68a1c'); bokeh(ctx, W, H, r, ['#ffd27a', '#fff2cc', '#ff9a2e'], 30);
+        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, H * .7, W, H * .3); break;
+      case 'mono':
+        bg('#2a2a2e', '#08080a'); bokeh(ctx, W, H, r, ['#fff', '#aaa'], 18);
+        figure(ctx, W, H, { x: .45, k: 1.1, skin: '#9a9a9e', cloth: '#d8d8dc', hair: '#111' }); break;
+      default:
+        bg('#042a30', '#1fbfb0'); bokeh(ctx, W, H, r, ['#9fffe9', '#fff', '#2ee6ff'], 28);
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
+        for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.ellipse(W / 2, H / 2, 30 + i * 18, 14 + i * 9, i * .22, 0, 7); ctx.stroke(); }
+    }
+    const v = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .9);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  }
+
+  /* ================= TEKS & PENGATURAN DARI DASBOR ================= */
+  function fmt(s) {
+    return esc(s).replace(/\[\[(.+?)\]\]/g, '<em>$1</em>').replace(/\{\{(.+?)\}\}/g, '<i>$1</i>')
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+  }
+  function applySite(site) {
+    if (!site) return;
+    const t = site.texts || {};
+    $$('[data-t]').forEach((el) => { const v = t[el.dataset.t]; if (typeof v === 'string' && v !== '') el.innerHTML = fmt(v); });
+    const s = site.settings || {};
+    if (s.siteTitle) document.title = s.siteTitle;
+    if (s.siteDescription) { const m = document.querySelector('meta[name=description]'); if (m) m.content = s.siteDescription; }
+    const ph = site.content && site.content.profile && site.content.profile.photo;
+    if (ph) { const img = $('#profileImg'); if (img && !img.src.endsWith(ph)) img.src = ph; }
+  }
+
+  /* ================= RENDER ================= */
+  function renderAll(d) {
+    $('#heroIntro').textContent = d.profile.intro;
+    $('#heroStats').innerHTML = d.profile.stats.map((s) =>
+      `<li><b data-n="${s.n}" data-suf="${esc(s.suffix || '')}">0${esc(s.suffix || '')}</b><span>${esc(s.label)}</span></li>`).join('');
+
+    $('#tabs').innerHTML = d.categories.map((c, i) => `<button class="tab${i ? '' : ' on'}" role="tab" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+    $('#cards').innerHTML = d.projects.map((p) => `
+      <a class="card" href="${p.link ? esc(p.link) : '#kontak'}"${p.link ? ' target="_blank" rel="noopener"' : ''} data-id="${p.id}" data-cat="${esc(p.cat)}" aria-label="${esc(p.title)}">
+        <div class="thumb">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}">` : `<canvas data-theme="${esc(p.theme)}"></canvas>`}<span class="badge">${esc(p.cat.toUpperCase())} / ${p.year}</span><span class="pl"></span></div>
+        <div class="meta"><span class="no"></span><div><h3>${esc(p.title)}</h3><p>${esc(p.type)}</p></div></div>
+      </a>`).join('');
+    $$('#cards canvas').forEach((cv) => paintTheme(cv, cv.dataset.theme));
+    renumber();
+
+    $('#clientRow').innerHTML = d.clients.map((c) => `<span style="color:${esc(c.color)};font-family:${c.font === 'Anton' ? 'var(--display)' : 'var(--body)'};font-weight:${c.font === 'Anton' ? 400 : 700}">${c.logo ? `<img src="${esc(c.logo)}" alt="${esc(c.name)}" style="height:34px;width:auto;display:block">` : esc(c.name)}</span>`).join('');
+    $('#awards').innerHTML = d.awards.map((a) => `<li><div><b>${esc(a.title)}</b><small>${esc(a.sub)}</small></div><span></span><span class="yr">${a.year}</span></li>`).join('');
+    $('#edu').innerHTML = d.education.map((e) => `<li><b>${esc(e.title)}</b><span>${esc(e.text)}</span></li>`).join('');
+    $('#chips').innerHTML = d.toolkit.map((t) => `<span>${esc(t)}</span>`).join('');
+    $('#sw').innerHTML = d.software.map((s) => `<span title="${esc(s.name)}" style="color:${esc(s.color)}">${esc(s.short)}</span>`).join('');
+    $('#steps').innerHTML = d.process.map((p) => `<li><span class="no">${esc(p.no)}</span><b>${esc(p.title)}</b><p>${esc(p.text)}</p></li>`).join('');
+    $('#timeline').innerHTML = d.journey.map((j) => `<li class="reveal"><span class="yr">${esc(j.years)}</span><div class="bd"><h3>${esc(j.role)}</h3><small>${esc(j.place)}</small><p>${esc(j.text)}</p></div></li>`).join('');
+    $('#wins').innerHTML = d.wins.map((w) => `<li><b>${esc(w.title)}</b><span>${esc(w.text)}</span></li>`).join('');
+
+    const c = d.contact;
+    const LB = (k, def) => { const t = (window.__SITE && window.__SITE.texts) || {}; return typeof t['contact.lbl.' + k] === 'string' && t['contact.lbl.' + k].trim() ? esc(t['contact.lbl.' + k]) : def; };
+    const sr = window.__SITE && window.__SITE.showreel; const sl = $('#showreelLink'); if (sr && sl) { sl.href = sr; sl.target = '_blank'; sl.rel = 'noopener'; }
+    $('#contactList').innerHTML = [
+      ['&#9993;', LB('email', 'EMAIL'), `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`],
+      ['&#9678;', LB('instagram', 'INSTAGRAM'), `<a href="https://instagram.com/${esc(c.instagram.replace('@', ''))}" target="_blank" rel="noopener">${esc(c.instagram)}</a>`],
+      ['&#9990;', LB('phone', 'WHATSAPP / TELEPON'), `<a href="https://wa.me/${esc(c.whatsapp)}" target="_blank" rel="noopener">${esc(c.phone)}</a>`],
+      ['&#9906;', LB('location', 'LOKASI'), `<span class="v">${esc(c.location)}</span>`]
+    ].map(([ic, l, v]) => `<li><span class="ic">${ic}</span><div><small>${l}</small>${v}</div></li>`).join('');
+    $('#waBtn').href = `https://wa.me/${c.whatsapp}?text=${encodeURIComponent('Halo Renando, saya ingin berdiskusi tentang proyek.')}`;
+    $('#yr').textContent = new Date().getFullYear();
+    $('#shareBtn').onclick = async () => {
+      const url = window.SHARE_URL || location.href, m = $('#shareMsg');
+      try { if (navigator.share) { await navigator.share({ title: document.title, text: 'Portfolio Renando', url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+      try { await navigator.clipboard.writeText(url); m.className = 'form-msg ok'; m.textContent = 'Link disalin. Tempel untuk membagikan.'; }
+      catch (e) { m.className = 'form-msg'; m.textContent = url; }
+    };
+  }
+
+  function renumber() {
+    let i = 0;
+    $$('#cards .card:not(.hide)').forEach((c) => { $('.no', c).textContent = pad2(++i); });
+  }
+
+  /* ================= INTERAKSI ================= */
+  function initFilter() {
+    $('#tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('.tab'); if (!b) return;
+      $$('.tab').forEach((t) => t.classList.toggle('on', t === b));
+      const cat = b.dataset.cat;
+      $$('#cards .card').forEach((c) => {
+        const show = cat === 'Semua' || c.dataset.cat === cat;
+        c.classList.toggle('hide', !show);
+        if (show) { c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+      });
+      renumber();
+    });
+  }
+
+  function initReveal() {
+    const io = new IntersectionObserver((es) => es.forEach((e) => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('in'); io.unobserve(e.target);
+      if (e.target.id === 'heroStats') countUp();
+    }), { threshold: .12 });
+    $$('.reveal').forEach((el) => io.observe(el));
+  }
+
+  function countUp() {
+    $$('#heroStats b').forEach((b) => {
+      const n = +b.dataset.n, suf = b.dataset.suf, t0 = performance.now();
+      (function step(t) {
+        const p = Math.min((t - t0) / 1300, 1), e = 1 - Math.pow(1 - p, 3);
+        b.textContent = Math.round(n * e) + suf;
+        if (p < 1) requestAnimationFrame(step);
+      })(t0);
+    });
+  }
+
+  function initNav() {
+    const nav = $('#nav'), bar = $('#progress span'), links = $$('#navLinks a');
+    const ids = links.map((a) => a.getAttribute('href').slice(1));
+    const onScroll = () => {
+      nav.classList.toggle('solid', scrollY > 30);
+      const max = document.documentElement.scrollHeight - innerHeight;
+      bar.style.height = (max > 0 ? scrollY / max * 100 : 0) + '%';
+      let cur = ids[0];
+      ids.forEach((id) => { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top < innerHeight * .4) cur = id; });
+      links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
+    };
+    addEventListener('scroll', onScroll, { passive: true }); onScroll();
+    const burger = $('#burger'), menu = $('#navLinks');
+    burger.addEventListener('click', () => { burger.classList.toggle('open'); menu.classList.toggle('open'); });
+    links.forEach((a) => a.addEventListener('click', () => { burger.classList.remove('open'); menu.classList.remove('open'); }));
+  }
+
+  function initBeforeAfter() {
+    const box = $('#ba'), real = $('#baReal'), raw = $('#baRaw'), handle = $('#baHandle');
+    [real, raw].forEach((c) => { c.width = 960; c.height = 600; });
+    const baImg = (cv, src, kind) => {
+      if (!src) { cityScene(cv.getContext('2d'), 960, 600, kind); return; }
+      const im = new Image(); im.onload = () => { const x = cv.getContext('2d'); const k = Math.max(960 / im.naturalWidth, 600 / im.naturalHeight); const w = im.naturalWidth * k, h = im.naturalHeight * k; x.drawImage(im, (960 - w) / 2, (600 - h) / 2, w, h); }; im.onerror = () => cityScene(cv.getContext('2d'), 960, 600, kind); im.src = src;
+    };
+    const baS = (window.__SITE && window.__SITE.ba) || {};
+    baImg(real, baS.real, 'real'); baImg(raw, baS.raw, 'raw');
+    let pos = 50, dragging = false, auto = true;
+    const set = (p) => { pos = Math.max(0, Math.min(100, p)); raw.style.clipPath = `inset(0 ${100 - pos}% 0 0)`; handle.style.left = pos + '%'; };
+    const fromEvent = (e) => { const r = box.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); };
+    box.addEventListener('pointerdown', (e) => { dragging = true; auto = false; box.setPointerCapture(e.pointerId); fromEvent(e); });
+    box.addEventListener('pointermove', (e) => { if (dragging) fromEvent(e); });
+    box.addEventListener('pointerup', () => { dragging = false; });
+    box.addEventListener('pointercancel', () => { dragging = false; });
+    set(50);
+    // sapuan otomatis saat pertama terlihat
+    new IntersectionObserver((es, io) => es.forEach((e) => {
+      if (!e.isIntersecting) return; io.disconnect();
+      const t0 = performance.now();
+      (function step(t) { if (!auto) return; const k = (t - t0) / 2600; if (k >= 1) { set(50); return; } set(50 + Math.sin(k * Math.PI * 2) * 38 * (1 - k * .5)); requestAnimationFrame(step); })(t0);
+    }), { threshold: .5 }).observe(box);
+  }
+
+  function initContact() {
+    const form = $('#contactForm'), msg = $('#formMsg');
+    $('#openForm').addEventListener('click', () => { form.hidden = !form.hidden; if (!form.hidden) $('input[name=name]', form).focus(); });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $$('input,textarea', form).forEach((i) => i.classList.remove('bad'));
+      msg.className = 'form-msg'; msg.textContent = 'Mengirim...';
+      const body = Object.fromEntries(new FormData(form));
+      { const em = (window.PORTFOLIO_FALLBACK.contact || {}).email || '';
+        if (!body.name.trim() || !body.email.trim() || body.message.trim().length < 10) { msg.className = 'form-msg err'; msg.textContent = 'Isi nama, email, dan pesan (minimal 10 karakter).'; return; }
+        const txt = 'Nama: ' + body.name + '\nEmail: ' + body.email + '\nSubjek: ' + (body.subject || '-') + '\n\n' + body.message;
+        try { await navigator.clipboard.writeText(txt); } catch (_) {}
+        msg.className = 'form-msg ok'; msg.textContent = 'Ini versi tampilan tanpa server, jadi pesan tidak terkirim otomatis. Teks pesan sudah disalin. Kirim ke ' + em + '.'; return; }
+      try {
+        const r = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok) { msg.className = 'form-msg ok'; msg.textContent = j.message || 'Pesan terkirim!'; form.reset(); return; }
+        if (j.errors) Object.keys(j.errors).forEach((k) => { const f = form.elements[k]; if (f) f.classList.add('bad'); });
+        msg.className = 'form-msg err'; msg.textContent = j.error || 'Gagal mengirim.';
+      } catch (err) {
+        msg.className = 'form-msg err'; msg.textContent = 'Server tidak dapat dihubungi. Jalankan "npm start" atau kirim lewat email.';
+      }
+    });
+  }
+
+  // kursor melayang kecil yang mengikuti mouse dengan jeda
+  function initGhosts() {
+    if (!matchMedia('(hover:hover) and (pointer:fine)').matches || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+    const cols = ['#ffffff', '#ff6b7d', '#7fe3ff', '#c7b6ff', '#ffd27a', '#9fffcf', '#ff9ad1'];
+    const gs = cols.map((c, i) => {
+      const el = document.createElement('div'); el.className = 'ghost';
+      el.innerHTML = `<svg viewBox="0 0 16 16"><path d="M1 1l5.5 14 2.2-5.6L14.5 7.2z" fill="${c}" stroke="#000" stroke-opacity=".5" stroke-width=".8"/></svg>`;
+      el.style.opacity = '0'; document.body.appendChild(el);
+      return { el, x: innerWidth / 2, y: innerHeight / 2, a: 0, k: .16 - i * .017 };
+    });
+    let mx = innerWidth / 2, my = innerHeight / 2, seen = false;
+    addEventListener('pointermove', (e) => { mx = e.clientX; my = e.clientY; if (!seen) { seen = true; gs.forEach((g) => { g.x = mx; g.y = my; g.el.style.opacity = '.9'; }); } }, { passive: true });
+    document.addEventListener('pointerleave', () => gs.forEach((g) => g.el.style.opacity = '0'));
+    document.addEventListener('pointerenter', () => seen && gs.forEach((g) => g.el.style.opacity = '.9'));
+    (function loop() {
+      let px = mx, py = my;
+      gs.forEach((g, i) => {
+        const tx = px + 14 + i * 3, ty = py + 14 + i * 6;
+        const dx = tx - g.x, dy = ty - g.y;
+        g.x += dx * g.k; g.y += dy * g.k;
+        if (Math.hypot(dx, dy) > 2) g.a = Math.atan2(dy, dx) * 180 / Math.PI - 45 + 90 * 0;
+        g.el.style.transform = `translate(${g.x}px,${g.y}px) rotate(${(g.a * .25).toFixed(1)}deg)`;
+        px = g.x - 6; py = g.y - 6;
+      });
+      requestAnimationFrame(loop);
+    })();
+  }
+
+  /* ================= START ================= */
+  (async function start() {
+    const data = await loadData();
+    if (window.RenandoEditor) window.RenandoEditor.apply(data);
+    renderAll(data);
+    applySite(window.__SITE);
+    initFilter(); initReveal(); initNav(); initBeforeAfter(); initContact(); initGhosts();
+    if (window.PixelScatter) new PixelScatter($('#photoWrap'), $('#profileImg'));
+    if (window.RenandoEditor) window.RenandoEditor.mount(data);
+  })();
+})();
+</script>
+
+</body></html>
