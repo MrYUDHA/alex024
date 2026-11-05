@@ -150,19 +150,55 @@ em{font-style:normal;color:var(--pink)}
 .awards small{font-size:.66rem;color:var(--muted)}
 .awards .yr{font-family:var(--display);font-size:clamp(1.3rem,2.2vw,1.9rem);color:var(--red2)}
 
-/* ===== BEFORE / AFTER ===== */
-.raw{align-items:center}
-.tiny-note{margin-top:30px;font-size:.6rem;letter-spacing:.16em;color:var(--muted);line-height:1.8}
-.ba{position:relative;aspect-ratio:16/10;overflow:hidden;border:1px solid var(--line);cursor:ew-resize;touch-action:pan-y;user-select:none;background:#0a0a0e}
-.ba canvas{position:absolute;inset:0;width:100%;height:100%}
-.ba #baRaw{clip-path:inset(0 50% 0 0)}
-.ba .tag{position:absolute;top:14px;font-size:.58rem;letter-spacing:.2em;font-weight:700;padding:5px 10px;background:rgba(7,7,10,.75);z-index:3}
-.ba .tl{left:14px}.ba .tr{right:14px;color:var(--pink)}
-.handle{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--red2);z-index:4;box-shadow:0 0 18px var(--red)}
-.handle i{position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px;border-radius:50%;background:var(--red);border:3px solid #fff;display:block}
-.handle i::before,.handle i::after{content:"";position:absolute;top:50%;margin-top:-5px;border-top:5px solid transparent;border-bottom:5px solid transparent}
-.handle i::before{left:6px;border-right:7px solid #fff}
-.handle i::after{right:6px;border-left:7px solid #fff}
+ /* ANIMASI POHON TUMBUH */
+#from-raw .tree-app {
+  width: 100%;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b14;
+  color: #e8e4ff;
+  overflow: hidden;
+}
+
+#from-raw .tree-stage {
+  flex: 1;
+  position: relative;
+  min-height: 460px;
+}
+
+#from-raw #treeGrowthCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#from-raw .tree-panel {
+  margin: 0 auto 24px;
+  width: min(420px, 90%);
+  padding: 16px 20px 18px;
+  border-radius: 16px;
+  background: rgba(129,44,255,.12);
+  border: 1px solid rgba(129,44,255,.45);
+  box-shadow: 0 0 24px rgba(129,44,255,.25);
+  backdrop-filter: blur(6px);
+}
+
+#from-raw .tree-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+#from-raw #treeGrowthSlider {
+  width: 100%;
+  height: 8px;
+  accent-color: #812cff;
+  cursor: pointer;
+}
 
 /* ===== TENTANG ===== */
 .about{display:grid;grid-template-columns:1fr 1fr .8fr;gap:clamp(24px,4vw,64px);margin-top:clamp(50px,7vw,90px)}
@@ -361,19 +397,26 @@ b[data-t]{font-weight:inherit}
 </section>
 
 <!-- ================= FROM RAW TO REAL ================= -->
-<section class="section" id="from-raw">
-  <div class="wrap two raw">
-    <div>
-      <p class="eyebrow tiny reveal" data-t="raw.eyebrow">A VFX BREAKDOWN</p>
-      <h2 class="title big reveal d1" data-t="raw.title">FROM RAW.<br><em class="pink">TO REAL.</em></h2>
-      <p class="muted reveal d2" data-t="raw.text">Footage mentah, tracking, 3D environment, dan compositing.<br>Geser untuk melihat bagaimana shot biasa berubah menjadi sinematik.</p>
-      <p class="tiny-note reveal d3" data-t="raw.note">GESER SLIDER &rarr;<br>BEFORE / AFTER</p>
+ <section class="section" id="from-raw">
+  <div class="tree-app">
+    <div class="tree-stage">
+      <canvas id="treeGrowthCanvas"></canvas>
     </div>
-    <div class="ba reveal d2" id="ba">
-      <canvas id="baReal"></canvas>
-      <canvas id="baRaw"></canvas>
-      <span class="tag tl" data-t="raw.tagl">RAW</span><span class="tag tr" data-t="raw.tagr">REAL</span>
-      <div class="handle" id="baHandle"><i></i></div>
+
+    <div class="tree-panel">
+      <div class="tree-row">
+        <span id="treeGrowthStageName">Biji</span>
+        <span id="treeGrowthPct">0%</span>
+      </div>
+
+      <input
+        type="range"
+        id="treeGrowthSlider"
+        min="0"
+        max="1000"
+        value="0"
+        aria-label="Pertumbuhan pohon"
+      >
     </div>
   </div>
 </section>
@@ -1546,29 +1589,255 @@ b[data-t]{font-weight:inherit}
     links.forEach((a) => a.addEventListener('click', () => { burger.classList.remove('open'); menu.classList.remove('open'); }));
   }
 
-  function initBeforeAfter() {
-    const box = $('#ba'), real = $('#baReal'), raw = $('#baRaw'), handle = $('#baHandle');
-    [real, raw].forEach((c) => { c.width = 960; c.height = 600; });
-    const baImg = (cv, src, kind) => {
-      if (!src) { cityScene(cv.getContext('2d'), 960, 600, kind); return; }
-      const im = new Image(); im.onload = () => { const x = cv.getContext('2d'); const k = Math.max(960 / im.naturalWidth, 600 / im.naturalHeight); const w = im.naturalWidth * k, h = im.naturalHeight * k; x.drawImage(im, (960 - w) / 2, (600 - h) / 2, w, h); }; im.onerror = () => cityScene(cv.getContext('2d'), 960, 600, kind); im.src = src;
+   
+function initBeforeAfter() {
+  const canvas = document.getElementById("treeGrowthCanvas");
+  const slider = document.getElementById("treeGrowthSlider");
+  const pctEl = document.getElementById("treeGrowthPct");
+  const nameEl = document.getElementById("treeGrowthStageName");
+
+  if (!canvas || !slider || !pctEl || !nameEl) return;
+
+  const ctx = canvas.getContext("2d");
+
+  const MAX_DEPTH = 9;
+  const SEED = 7;
+  const LEAF_START = 0.82;
+
+  const TRUNK_COLOR = [150, 105, 70];
+  const TIP_COLOR = [120, 190, 90];
+  const LEAF_COLORS = [
+    "#7be36b",
+    "#4fc45a",
+    "#a6f08a",
+    "#c9ffb0"
+  ];
+
+  function mulberry32(a) {
+    return () => {
+      a |= 0;
+      a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
     };
-    const baS = (window.__SITE && window.__SITE.ba) || {};
-    baImg(real, baS.real, 'real'); baImg(raw, baS.raw, 'raw');
-    let pos = 50, dragging = false, auto = true;
-    const set = (p) => { pos = Math.max(0, Math.min(100, p)); raw.style.clipPath = `inset(0 ${100 - pos}% 0 0)`; handle.style.left = pos + '%'; };
-    const fromEvent = (e) => { const r = box.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); };
-    box.addEventListener('pointerdown', (e) => { dragging = true; auto = false; box.setPointerCapture(e.pointerId); fromEvent(e); });
-    box.addEventListener('pointermove', (e) => { if (dragging) fromEvent(e); });
-    box.addEventListener('pointerup', () => { dragging = false; });
-    box.addEventListener('pointercancel', () => { dragging = false; });
-    set(50);
-    // sapuan otomatis saat pertama terlihat
-    new IntersectionObserver((es, io) => es.forEach((e) => {
-      if (!e.isIntersecting) return; io.disconnect();
-      const t0 = performance.now();
-      (function step(t) { if (!auto) return; const k = (t - t0) / 2600; if (k >= 1) { set(50); return; } set(50 + Math.sin(k * Math.PI * 2) * 38 * (1 - k * .5)); requestAnimationFrame(step); })(t0);
-    }), { threshold: .5 }).observe(box);
+  }
+
+  const branches = [];
+  const leaves = [];
+  let maxEnd = 0;
+
+  function build() {
+    branches.length = 0;
+    leaves.length = 0;
+    maxEnd = 0;
+
+    const rnd = mulberry32(SEED);
+
+    function grow(x, y, angle, len, depth, startT) {
+      const dur = 0.35 + len * 1.2;
+
+      const b = {
+        x, y, angle, len, depth,
+        t0: startT,
+        t1: startT + dur,
+        w: Math.max(0.012, 0.075 * Math.pow(0.68, depth))
+      };
+
+      branches.push(b);
+      maxEnd = Math.max(maxEnd, b.t1);
+
+      const ex = x + Math.sin(angle) * len;
+      const ey = y - Math.cos(angle) * len;
+
+      if (depth >= MAX_DEPTH) {
+        const n = 3 + Math.floor(rnd() * 3);
+
+        for (let i = 0; i < n; i++) {
+          leaves.push({
+            x: ex + (rnd() - 0.5) * 0.07,
+            y: ey + (rnd() - 0.5) * 0.07,
+            r: 0.018 + rnd() * 0.022,
+            c: LEAF_COLORS[
+              Math.floor(rnd() * LEAF_COLORS.length)
+            ],
+            delay: rnd() * 0.6
+          });
+        }
+        return;
+      }
+
+      const kids = depth < 2
+        ? 2 + (rnd() < 0.45 ? 1 : 0)
+        : 2;
+
+      for (let i = 0; i < kids; i++) {
+        const spread = 0.30 + rnd() * 0.40;
+        const side = kids === 2 ? (i === 0 ? -1 : 1) : (i - 1);
+
+        const a = angle + side * spread + (rnd() - 0.5) * 0.18;
+        const l = len * (0.68 + rnd() * 0.12);
+
+        grow(ex, ey, a, l, depth + 1, b.t1);
+      }
+    }
+
+    grow(0, 0, 0, 1.0, 0, 0);
+
+    const k = LEAF_START / maxEnd;
+
+    for (const b of branches) {
+      b.t0 *= k;
+      b.t1 *= k;
+    }
+  }
+
+  let W = 0;
+  let H = 0;
+  let dpr = 1;
+
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const ease = t => t * t * (3 - 2 * t);
+  const mix = (a, b, t) => Math.round(a + (b - a) * t);
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+
+    if (!W || !H) return;
+
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+
+    draw();
+  }
+
+  function draw() {
+    if (!W || !H) return;
+
+    const g = parseFloat(slider.value) / 1000;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const groundY = H - 24;
+    const unit = Math.min(H * 0.22, W * 0.25);
+    const cx = W / 2;
+
+    const grd = ctx.createRadialGradient(
+      cx, groundY, 0,
+      cx, groundY, W * 0.5
+    );
+
+    grd.addColorStop(0, "rgba(129,44,255,0.35)");
+    grd.addColorStop(1, "rgba(129,44,255,0)");
+
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, groundY - 40, W, 80);
+
+    ctx.fillStyle = "#1a1230";
+    ctx.fillRect(0, groundY, W, H - groundY);
+
+    const seedA = 1 - clamp(g / 0.05, 0, 1);
+
+    if (seedA > 0) {
+      ctx.save();
+      ctx.globalAlpha = seedA;
+      ctx.fillStyle = "#b98a5a";
+      ctx.shadowColor = "#812cff";
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.ellipse(cx, groundY - 4, 8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.shadowColor = "rgba(129,44,255,0.55)";
+    ctx.shadowBlur = 12;
+
+    for (const b of branches) {
+      const p = clamp(
+        (g - b.t0) / (b.t1 - b.t0),
+        0, 1
+      );
+
+      if (p <= 0) continue;
+
+      const e = ease(p);
+
+      const sx = cx + b.x * unit;
+      const sy = groundY + b.y * unit;
+
+      const ex = sx + Math.sin(b.angle) * b.len * unit * e;
+      const ey = sy - Math.cos(b.angle) * b.len * unit * e;
+
+      const t = b.depth / MAX_DEPTH;
+
+      ctx.strokeStyle = `rgb(
+        ${mix(TRUNK_COLOR[0], TIP_COLOR[0], t)},
+        ${mix(TRUNK_COLOR[1], TIP_COLOR[1], t)},
+        ${mix(TRUNK_COLOR[2], TIP_COLOR[2], t)}
+      )`;
+
+      ctx.lineWidth = Math.max(1, b.w * unit);
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+    }
+
+    if (g > LEAF_START) {
+      const lg = (g - LEAF_START) / (1 - LEAF_START);
+
+      for (const l of leaves) {
+        const s = ease(
+          clamp((lg - l.delay * 0.6) / 0.4, 0, 1)
+        );
+
+        if (s <= 0) continue;
+
+        ctx.fillStyle = l.c;
+        ctx.shadowColor = l.c;
+        ctx.shadowBlur = 8;
+
+        ctx.beginPath();
+        ctx.arc(
+          cx + l.x * unit,
+          groundY + l.y * unit,
+          Math.max(1.2, l.r * unit * s),
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+
+    pctEl.textContent = Math.round(g * 100) + "%";
+
+    nameEl.textContent =
+      g < 0.05 ? "Biji" :
+      g < 0.25 ? "Tunas" :
+      g < 0.60 ? "Pohon muda" :
+      g < LEAF_START ? "Bercabang" :
+      "Rimbun berdaun";
+
+    slider.style.setProperty("--fill", (g * 100) + "%");
+  }
+
+  slider.addEventListener("input", draw);
+  window.addEventListener("resize", resize);
+
+  build();
+  resize();
+}
+
   }
 
   function initContact() {
