@@ -1,4 +1,4 @@
-  <!doctype html>
+ <!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nilwan Yudi – DEVELOPER & EDITOR </title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -154,9 +154,10 @@ em{font-style:normal;color:var(--pink)}
 .tree-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .tree-stage::after{content:"";position:absolute;left:8%;right:8%;bottom:13%;height:1px;background:linear-gradient(90deg,transparent,rgba(126,180,112,.6),transparent);box-shadow:0 0 22px rgba(91,171,93,.28)}
 .tree-caption{position:absolute;left:18px;right:18px;bottom:18px;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:12px;color:#c8d8c8;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase}
-.tree-restart{border:1px solid rgba(190,220,190,.35);background:rgba(8,15,10,.72);color:#e9f5e8;padding:10px 14px;font:inherit;font-size:.62rem;letter-spacing:.12em;cursor:pointer}
-.tree-restart:hover{background:var(--red);border-color:var(--red)}
-.tree-note{margin-top:24px;font-size:.65rem;letter-spacing:.14em;color:var(--muted);line-height:1.8}
+.tree-controls{display:flex;align-items:center;gap:12px;width:100%}
+.tree-slider-wrap{display:flex;align-items:center;gap:12px;background:rgba(8,15,10,.72);padding:8px 16px;border:1px solid rgba(190,220,190,.35);width:100%}
+.tree-slider-wrap label{font-size:.58rem;letter-spacing:.1em;color:#a4c77c;white-space:nowrap}
+.tree-slider-wrap input[type=range]{accent-color:var(--red);cursor:pointer;width:100%}
 
 /* TENTANG */
 .about{display:grid;grid-template-columns:1fr 1fr .8fr;gap:clamp(24px,4vw,64px);margin-top:clamp(50px,7vw,90px)}
@@ -296,7 +297,7 @@ b[data-t]{font-weight:inherit}
   <div class="hero-copy">
     <p class="hello reveal" data-t="hero.hello">Hello,I'm</p>
     <h1 class="reveal d1" data-t="hero.name">NILWAN<br>YUDI<i>.</i></h1>
-    <p class="role reveal d2" data-t="hero.role">DEVELOPER &amp;<br>MARKETING</p>
+    <p class="role reveal d2" data-t="hero.role">DEVELOPER, MARKETING &amp;<br>VIDEO CREATOR</p>
     <p class="intro reveal d3" id="heroIntro"></p>
     <a href="#karya" class="btn-red reveal d4"><b data-t="hero.cta">LIHAT ALBUM</b> <span>&rarr;</span></a>
   </div>
@@ -355,11 +356,16 @@ b[data-t]{font-weight:inherit}
       <p class="eyebrow tiny reveal">GROWTH &amp; CREATION</p>
       <h2 class="title big reveal d1">DARI BENIH.<br><em class="pink">JADI POHON.</em></h2>
       <p class="muted reveal d2">Setiap pengalaman dimulai dari langkah kecil. Dengan proses, ketekunan, dan waktu, kemampuan tumbuh menjadi kuat dan bermakna.</p>
-      <p class="tree-note reveal d3">ANIMASI POHON TUMBUH<br>TEKAN TUMBUHKAN LAGI UNTUK MENGULANGI</p>
     </div>
     <div class="tree-stage reveal d2" id="treeStage">
       <canvas id="growingTree" aria-label="Animasi ilustrasi pohon yang tumbuh dari benih"></canvas>
-      <div class="tree-caption"><span>01 / GROWTH PROCESS</span><button class="tree-restart" id="treeRestart" type="button">↻ TUMBUHKAN LAGI</button></div>
+      <div class="tree-caption">
+        <div class="tree-controls">
+          <div class="tree-slider-wrap">
+            <input type="range" id="treeProgressSlider" min="0" max="100" value="0">
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -374,7 +380,7 @@ b[data-t]{font-weight:inherit}
       <div class="about-col">
         <h3 class="mini" data-t="about.edu">PENDIDIKAN &amp; KOMPETENSI</h3>
         <ul class="edu" id="edu"></ul>
-        <p class="red-label" data-t="about.toolkit">KOMPETENSI</p>
+        <p class="red-label" data-t="about.toolkit">KOMPETENSI &amp; HOBI</p>
         <div class="chips" id="chips"></div>
         <div class="sw" id="sw"></div>
       </div>
@@ -385,12 +391,12 @@ b[data-t]{font-weight:inherit}
       </div>
 
       <aside class="about-side">
-        <p class="muted small" data-t="about.bio">Saya Nilwan Yudi dari Kab. Pinrang, Sulawesi Selatan. Berpengalaman di bidang sales, customer service, pengawasan lapangan, dan administrasi. Mampu bekerja individu maupun tim.</p>
+        <p class="muted small" data-t="about.bio">Saya Nilwan Yudi dari Kab. Pinrang, Sulawesi Selatan. Berpengalaman di bidang sales, marketing, customer service, pengawasan lapangan, pembuatan konten video (YouTube, TikTok, Instagram), serta bisnis fashion &amp; distro (Area 72 Clothing). Mampu bekerja individu maupun tim.</p>
         <div class="quote">
           <span class="qm">&ldquo;</span>
           <p data-t="about.quote">Bekerja jujur, disiplin, dan fokus pada hasil.</p>
           <div class="sign" data-t="about.sign">Nilwan Yudi</div>
-          <small data-t="about.role">Sales &middot; Pengawas Lapangan</small>
+          <small data-t="about.role">Sales &middot; Pengawas Lapangan &middot; Video Creator</small>
         </div>
       </aside>
     </div>
@@ -459,29 +465,34 @@ b[data-t]{font-weight:inherit}
 <script>window.PORTFOLIO_FALLBACK = {
   "profile": {
     "name": "Nilwan Yudi",
-    "role": "Sales & Pengawas Lapangan",
-    "intro": "Pribadi disiplin, jujur, dan bertanggung jawab. Berpengalaman di sales, customer service, pengawasan lapangan, dan administrasi.",
+    "role": "Sales, Pengawas Lapangan & Video Creator",
+    "intro": "Pribadi disiplin, jujur, dan bertanggung jawab. Berpengalaman di sales, customer service, pengawasan lapangan, pembuatan konten digital (YouTube, TikTok, Instagram), serta bisnis distro Area 72 Clothing.",
     "stats": [
-      { "n": 2, "suffix": "+", "label": "Tahun Pengalaman" },
-      { "n": 3, "suffix": "", "label": "Tempat Kerja" },
+      { "n": 3, "suffix": "+", "label": "Tahun Pengalaman" },
+      { "n": 5, "suffix": "", "label": "Tempat Kerja & Usaha" },
       { "n": 4, "suffix": "", "label": "Sertifikat & Penghargaan" }
     ]
   },
-  "categories": ["Semua", "Marketing", "Pengawasan", "Customer Service", "Organisasi", "Penghargaan"],
+  "categories": ["Semua", "Marketing", "Pengawasan", "Customer Service", "Kreator Content", "Fashion", "Organisasi", "Penghargaan"],
   "projects": [
     { "id": 1, "title": "NSS Honda Parepare", "type": "Marketing · Sep 2026", "cat": "Marketing", "year": 2026, "theme": "red" },
-    { "id": 2, "title": "PT ASN", "type": "Pengawas Pekerja Lapangan · Jan 2025 – Mei 2026", "cat": "Pengawasan", "year": 2025, "theme": "amber" },
-    { "id": 3, "title": "PT PLN (Persero)", "type": "Staff Customer Service · Apr – Mei 2024", "cat": "Customer Service", "year": 2024, "theme": "teal" },
-    { "id": 4, "title": "Organisasi Pecinta Alam", "type": "Anggota · 2019 – 2024", "cat": "Organisasi", "year": 2024, "theme": "mono" },
-    { "id": 5, "title": "Porprov Sulawesi Selatan", "type": "Atlet Dayung · Piagam Penghargaan", "cat": "Penghargaan", "year": 2022, "theme": "city" },
-    { "id": 6, "title": "Hari Pohon Sedunia", "type": "Sertifikat Partisipasi", "cat": "Organisasi", "year": 2021, "theme": "warm" }
+    { "id": 2, "title": "PT. BMM", "type": "Pengawasan & Lapangan", "cat": "Pengawasan", "year": 2026, "theme": "amber" },
+    { "id": 3, "title": "AREA 72 CLOTHING", "type": "Distro & Fashion Brand", "cat": "Fashion", "year": 2025, "theme": "warm" },
+    { "id": 4, "title": "Kreator Video Digital", "type": "YouTube (Y Official), TikTok & Instagram", "cat": "Kreator Content", "year": 2025, "theme": "city" },
+    { "id": 5, "title": "PT ASN", "type": "Pengawas Pekerja Lapangan · Jan 2025 – Mei 2026", "cat": "Pengawasan", "year": 2025, "theme": "amber" },
+    { "id": 6, "title": "PT PLN (Persero)", "type": "Staff Customer Service · Apr – Mei 2024", "cat": "Customer Service", "year": 2024, "theme": "teal" },
+    { "id": 7, "title": "Organisasi Pecinta Alam", "type": "Anggota · 2019 – 2024", "cat": "Organisasi", "year": 2024, "theme": "mono" },
+    { "id": 8, "title": "Porprov Sulawesi Selatan", "type": "Atlet Dayung · Piagam Penghargaan", "cat": "Penghargaan", "year": 2022, "theme": "city" }
   ],
   "clients": [
+    { "name": "PT. BMM", "color": "#8b0000", "font": "Anton" },
+    { "name": "PT. BGI", "color": "#00008b", "font": "Anton" },
+    { "name": "AREA 72 CLOTHING", "color": "#eaeaea", "font": "Anton" },
+    { "name": "FKPA PINRANG", "color": "#ff7f50", "font": "Inter" },
+    { "name": "PEJALAN", "color": "#ffffff", "font": "Inter" },
     { "name": "NSS HONDA", "color": "#e5232f", "font": "Anton" },
     { "name": "PT ASN", "color": "#f08a2b", "font": "Anton" },
-    { "name": "PT PLN (PERSERO)", "color": "#4aa8ff", "font": "Anton" },
-    { "name": "LSK TIK", "color": "#5fbf6a", "font": "Inter" },
-    { "name": "PECINTA ALAM", "color": "#e8e8ee", "font": "Inter" }
+    { "name": "PT PLN (PERSERO)", "color": "#4aa8ff", "font": "Anton" }
   ],
   "awards": [
     { "title": "Sertifikat Kompetensi", "sub": "LSK TIK", "year": 2024 },
@@ -492,32 +503,40 @@ b[data-t]{font-weight:inherit}
   "education": [
     { "title": "SMAS Nasional Maros", "text": "Jurusan IPS | 2016 – 2019" },
     { "title": "Sertifikat Kompetensi LSK TIK", "text": "Kompetensi bidang TIK | 2024" },
-    { "title": "Organisasi Pecinta Alam", "text": "Anggota | 2019 – 2024. Kegiatan sosial, lingkungan, amal, dan penggalangan dana." }
+    { "title": "Organisasi Pecinta Alam / FKPA Pinrang / Pejalan", "text": "Anggota aktif. Kegiatan sosial, lingkungan, penggalangan dana, dan keolahragaan." }
   ],
   "toolkit": [
     "Customer Service",
-    "Marketing",
-    "Komunikasi & Public Speaking",
-    "Microsoft Word & Excel & PowerPoint",
-    "Kerja Tim",
-    "Pengawasan Lapangan"
+    "Marketing & Sales",
+    "Video Editing & Content Creating",
+    "Distro & Retail Management",
+    "Pengawasan Lapangan",
+    "Hobi: Voli",
+    "Hobi: Dayung",
+    "Hobi: Lari",
+    "Hobi: Menembak"
   ],
   "software": [
     { "short": "W", "name": "Microsoft Word", "color": "#4aa8ff" },
-    { "short": "X", "name": "Microsoft Excel", "color": "#5fbf6a" }
+    { "short": "X", "name": "Microsoft Excel", "color": "#5fbf6a" },
+    { "short": "YT", "name": "YouTube (Y Official)", "color": "#ff0000" },
+    { "short": "TT", "name": "TikTok", "color": "#ff0050" },
+    { "short": "IG", "name": "Instagram", "color": "#e1306c" }
   ],
   "process": [
-    { "no": "01", "title": "PROSPEK", "text": "Mencari dan menghubungi calon pelanggan, lalu melakukan follow-up." },
-    { "no": "02", "title": "MEMAHAMI KEBUTUHAN", "text": "Membangun hubungan dan menganalisis kebutuhan pelanggan." },
-    { "no": "03", "title": "PELAYANAN", "text": "Melayani dan membantu pelanggan sesuai prosedur perusahaan." },
-    { "no": "04", "title": "PENGAWASAN", "text": "Memantau material, progres, kualitas, dan penerapan K3 di lapangan." },
-    { "no": "05", "title": "LAPORAN", "text": "Menyusun laporan perkembangan dan mendukung pencapaian target." }
+    { "no": "01", "title": "PROSPEK & KONTEN", "text": "Mencari pelanggan serta merancang ide konten video digital (YouTube, TikTok, IG)." },
+    { "no": "02", "title": "MEMAHAMI KEBUTUHAN", "text": "Membangun hubungan pelanggan dan menyesuaikan produk/layanan." },
+    { "no": "03", "title": "PELAYANAN & PRODUKSI", "text": "Melayani konsumen dan memproduksi materi promosi visual yang menarik." },
+    { "no": "04", "title": "PENGAWASAN LAPANGAN", "text": "Memantau material, progres, dan keselamatan kerja (K3) di proyek." },
+    { "no": "05", "title": "LAPORAN & EVALUASI", "text": "Menyusun laporan perkembangan kinerja dan strategi pemasaran." }
   ],
   "journey": [
-    { "years": "JUL – SEP 2026", "role": "Sales Lapangan", "place": "NSS Honda Parepare", "text": "Melakukan penjualan, pemasaran, dan follow-up calon pelanggan, serta mendukung pencapaian target penjualan." },
-    { "years": "JAN 2025 – MEI 2026", "role": "Pengawas Pekerja Lapangan", "place": "PT ASN", "text": "Mengawasi pekerjaan konstruksi, mengoordinasikan pekerja, memantau material, progres, kualitas, K3, dan membuat laporan." },
-    { "years": "APR – MEI 2024", "role": "Staff Customer Service", "place": "PT PLN (Persero)", "text": "Memberikan pelayanan dan membantu kebutuhan pelanggan sesuai prosedur perusahaan." },
-    { "years": "2019 – 2024", "role": "Anggota", "place": "Organisasi Pecinta Alam", "text": "Kegiatan sosial, lingkungan, amal, dan penggalangan dana yang melatih kerja sama tim dan kepedulian." }
+    { "years": "2026 - SEKARANG", "role": "Pengawas / Operational", "place": "PT. BMM", "text": "Mengawasi pelaksanaan operasional dan alur kerja di lapangan." },
+    { "years": "2025 - SEKARANG", "role": "Founder / Owner", "place": "AREA 72 CLOTHING (DISTRO)", "text": "Mengelola usaha clothing/distro dari konsep desain, pemasaran, hingga pelayanan." },
+    { "years": "2024 - SEKARANG", "role": "Kreator Video Digital", "place": "YouTube (Y Official), TikTok, IG", "text": "Memproduksi konten video kreatif, editing, dan manajemen media sosial." },
+    { "years": "JUL – SEP 2026", "role": "Sales Lapangan", "place": "NSS Honda Parepare", "text": "Penjualan, pemasaran, dan follow-up calon pelanggan." },
+    { "years": "JAN 2025 – MEI 2026", "role": "Pengawas Pekerja Lapangan", "place": "PT ASN", "text": "Mengawasi pekerjaan konstruksi, pekerja, K3, dan menyusun laporan." },
+    { "years": "APR – MEI 2024", "role": "Staff Customer Service", "place": "PT PLN (Persero)", "text": "Memberikan pelayanan terbaik kepada pelanggan sesuai standar PLN." }
   ],
   "wins": [
     { "title": "PT PLN (Persero) UP3 Pare-Pare", "text": "Sertifikat Penghargaan 2024" },
@@ -751,11 +770,8 @@ b[data-t]{font-weight:inherit}
   global.PixelScatter = PixelScatter;
 })(window);
 </script>
-<script>window.YUDHA_EDIT=/[?&]edit(=|&|$)/.test(location.search);</script><script>/**
- * Editor - panel edit di dalam halaman (buka dengan menambahkan ?edit di URL).
- * Ganti foto profil, foto album, judul, intro, dan kontak tanpa menyentuh kode.
- * Perubahan disimpan di browser ini (localStorage).
- */
+<script>window.YUDHA_EDIT=/[?&]edit(=|&|$)/.test(location.search);</script>
+<script>
 (function (global) {
   'use strict';
   const KEY = 'nilwan-overrides-v1';
@@ -879,14 +895,12 @@ b[data-t]{font-weight:inherit}
     const photoPrev = el('img', { class: 'ed-prev', alt: '' });
     photoPrev.src = pending.photo || document.getElementById('profileImg').src;
     
-    // Tombol AI Hapus Latar Belakang Otomatis
     const removeBgBtn = el('button', { class: 'ed-mini', type: 'button', text: 'HAPUS LATAR BELAKANG OTOMATIS (AI)' });
     removeBgBtn.addEventListener('click', async () => {
       msg.className = 'ed-msg';
-      msg.textContent = 'Memproses penghapusan latar belakang foto 1001373815-removebg-preview.png... Mohon tunggu sebentar.';
+      msg.textContent = 'Memproses penghapusan latar belakang foto... Mohon tunggu sebentar.';
       try {
         const currentSrc = document.getElementById('profileImg').src;
-        // Memanggil imgly background removal
         const blob = await window.imgBorderRemoval ? window.imgBorderRemoval(currentSrc) : imgDataRemoval(currentSrc);
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -1046,7 +1060,6 @@ b[data-t]{font-weight:inherit}
     return window.PORTFOLIO_FALLBACK;
   }
 
-  /* ===== placeholder gambar untuk kartu album yang belum ada fotonya ===== */
   function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function bokeh(ctx, w, h, r, cols, n) {
     for (let i = 0; i < n; i++) {
@@ -1147,7 +1160,6 @@ b[data-t]{font-weight:inherit}
     });
   }
 
-  /* lightbox foto album */
   function initLightbox() {
     const lb = $('#lb'), img = $('#lbImg'), cap = $('#lbCap');
     const close = () => { lb.classList.remove('open'); lb.setAttribute('aria-hidden', 'true'); };
@@ -1201,20 +1213,23 @@ b[data-t]{font-weight:inherit}
     links.forEach((a) => a.addEventListener('click', () => { burger.classList.remove('open'); menu.classList.remove('open'); }));
   }
 
+  /* Animasi Pohon Tumbuh dengan Slider Geser Manual */
   function initGrowingTree() {
-    const canvas = $('#growingTree'), stage = $('#treeStage'), restart = $('#treeRestart');
+    const canvas = $('#growingTree'), stage = $('#treeStage'), slider = $('#treeProgressSlider');
     if (!canvas || !stage) return;
     const ctx = canvas.getContext('2d');
-    let width = 0, height = 0, startAt = 0, raf = 0, visible = false;
+    let width = 0, height = 0, startAt = 0, raf = 0, visible = false, isManual = false;
     const branches = [];
+
     function resize() {
       const rect = stage.getBoundingClientRect();
       const dpr = Math.min(devicePixelRatio || 1, 2);
       width = Math.max(1, rect.width); height = Math.max(1, rect.height);
       canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      buildBranches(); draw(1);
+      buildBranches(); draw(slider ? slider.value / 100 : 1);
     }
+
     function buildBranches() {
       branches.length = 0;
       function branch(x, y, angle, length, depth, delay) {
@@ -1228,6 +1243,7 @@ b[data-t]{font-weight:inherit}
       }
       branch(width*.5,height*.84,-Math.PI/2,Math.min(height*.22,105),9,0);
     }
+
     function draw(progress) {
       ctx.clearRect(0,0,width,height);
       const glow=ctx.createRadialGradient(width*.5,height*.77,2,width*.5,height*.77,height*.58);
@@ -1235,6 +1251,7 @@ b[data-t]{font-weight:inherit}
       ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
       const ground=height*.84;
       ctx.fillStyle='#a4c77c';ctx.beginPath();ctx.ellipse(width*.5,ground+2,5,2.5,0,0,Math.PI*2);ctx.fill();
+
       branches.forEach((b)=>{
         const local=Math.max(0,Math.min(1,(progress-b.delay)/.48));
         if(local<=0)return;
@@ -1250,6 +1267,7 @@ b[data-t]{font-weight:inherit}
           ctx.fillStyle=leaf;ctx.beginPath();ctx.ellipse(ex,ey,8,4,b.angle,0,Math.PI*2);ctx.fill();
         }
       });
+
       if(progress>.68){
         const leafProgress=Math.min(1,(progress-.68)/.3);
         for(let i=0;i<42*leafProgress;i++){
@@ -1261,17 +1279,25 @@ b[data-t]{font-weight:inherit}
         }
       }
     }
+
     function animate(now) {
-      if(!visible)return;
+      if(!visible || isManual) return;
       const progress=Math.min(1,(now-startAt)/5200);
+      if (slider) slider.value = Math.round(progress * 100);
       draw(progress);
-      if(progress<1 || visible) raf=requestAnimationFrame(animate);
+      if(progress < 1) raf = requestAnimationFrame(animate);
     }
-    function growAgain(){cancelAnimationFrame(raf);startAt=performance.now();if(visible)raf=requestAnimationFrame(animate);else draw(0);}
-    restart?.addEventListener('click',growAgain);
+
+    slider?.addEventListener('input', (e) => {
+      isManual = true;
+      cancelAnimationFrame(raf);
+      const val = e.target.value / 100;
+      draw(val);
+    });
+
     const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{
       visible=entry.isIntersecting;
-      if(visible){if(!startAt)startAt=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(animate);}
+      if(visible && !isManual){if(!startAt)startAt=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(animate);}
       else cancelAnimationFrame(raf);
     }),{threshold:.15});
     observer.observe(stage);
