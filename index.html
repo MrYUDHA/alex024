@@ -1,4 +1,4 @@
-  <!doctype html>
+ <!doctype html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
@@ -9,6 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Kaushan+Script&family=Mrs+Saint+Delafield&display=swap" rel="stylesheet">
 <!-- Pustaka Penghapus Latar Belakang Berbasis AI (Client-side) -->
 <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/bundle.js"></script>
+<!-- Three.js & Controls CDN untuk Animasi 3D Global -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.146.0/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/controls/OrbitControls.js"></script>
 <style>
 :root{ color-scheme:dark; --bg:#07070a; --bg2:#0d0d12; --ink:#f4f4f6; --muted:#9a9aa6; --line:rgba(255,255,255,.1); --red:#e0313f; --red2:#ff4d5e; --pink:#ff6b7d; --display:'Anton','Impact','Arial Narrow',sans-serif; --body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --script:'Kaushan Script','Brush Script MT',cursive; --sign:'Mrs Saint Delafield','Brush Script MT',cursive; --gut:clamp(20px,6vw,96px); }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -135,11 +138,10 @@ em{font-style:normal;color:var(--pink)}
 .awards b{display:block;font-size:clamp(.95rem,1.6vw,1.2rem);font-weight:600}
 .awards small{font-size:.66rem;color:var(--muted)}
 .awards .yr{font-family:var(--display);font-size:clamp(1.3rem,2.2vw,1.9rem);color:var(--red2)}
-/* POHON */
+/* POHON / 3D VIEWPORT */
 .tree-section{align-items:center}
-.tree-stage{position:relative;min-height:clamp(300px,42vw,520px);overflow:hidden;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 100%,rgba(35,105,58,.24),transparent 58%),linear-gradient(180deg,#090b10,#0b1110 72%,#101a13);isolation:isolate}
+.tree-stage{position:relative;min-height:clamp(350px,45vw,500px);overflow:hidden;border:1px solid var(--line);background:#000;isolation:isolate;border-radius:12px}
 .tree-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.tree-stage::after{content:"";position:absolute;left:8%;right:8%;bottom:13%;height:1px;background:linear-gradient(90deg,transparent,rgba(126,180,112,.6),transparent);box-shadow:0 0 22px rgba(91,171,93,.28)}
 .tree-caption{position:absolute;left:18px;right:18px;bottom:18px;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:12px;color:#c8d8c8;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase}
 .tree-controls{display:flex;align-items:center;gap:12px;width:100%}
 .tree-slider-wrap{display:flex;align-items:center;gap:12px;background:rgba(8,15,10,.72);padding:8px 16px;border:1px solid rgba(190,220,190,.35);width:100%}
@@ -278,7 +280,7 @@ b[data-t]{font-weight:inherit}
 <a href="#karya" class="btn-red reveal d4"><b data-t="hero.cta">LIHAT ALBUM</b> <span>&rarr;</span></a>
 </div>
 <div class="hero-photo" id="photoWrap">
-<img src="1001373815-removebg-preview.png" alt="Foto Nilwan Yudi" id="profileImg" draggable="false">
+<img src="1001373815-removebg-preview.png" alt="Foto Nilwan Yudi" id="profileImg" draggable="false" onerror="this.style.display='none'">
 </div>
 <ul class="hero-stats reveal d3" id="heroStats"></ul>
 <a href="#karya" class="scroll-hint" aria-label="Scroll"><span></span><b data-t="hero.scroll">SCROLL</b></a>
@@ -324,23 +326,19 @@ b[data-t]{font-weight:inherit}
 <ol class="awards" id="awards"></ol>
 </div>
 </section>
-<!-- POHON TUMBUH -->
+<!-- ANIMASI 3D EARTH GLOBAL (GROWTH & CREATION) -->
 <section class="section" id="pohon-tumbuh">
 <div class="wrap two tree-section">
 <div>
 <p class="eyebrow tiny reveal">GROWTH &amp; CREATION</p>
-<h2 class="title big reveal d1">DARI BENIH.<br><em class="pink">JADI POHON.</em></h2>
-<p class="muted reveal d2">Setiap pengalaman dimulai dari langkah kecil, bahkan tidak terlihat. Dengan proses, ketekunan, dan waktu, kemampuan tumbuh menjadi kuat dan bermakna.</p>
+<h2 class="title big reveal d1">MR.Y OFFICIAL.<br><em class="pink">GLOBAL VISION.</em></h2>
+<p class="muted reveal d2">Representasi digital identitas dan karya dalam sistem 3D interaktif yang dinamis, kokoh, dan berkelanjutan.</p>
 </div>
 <div class="tree-stage reveal d2" id="treeStage">
-<canvas id="growingTree" aria-label="Animasi ilustrasi pohon yang tumbuh dari benih"></canvas>
-<div class="tree-caption">
-<div class="tree-controls">
-<div class="tree-slider-wrap">
-<input type="range" id="treeProgressSlider" min="0" max="100" value="0">
+<div style="position: absolute; top: 12px; right: 12px; z-index: 10;">
+<button type="button" id="reset-cam-btn" style="background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 99px; padding: 4px 12px; font-size: 11px; cursor: pointer;">Reset Kamera</button>
 </div>
-</div>
-</div>
+<canvas id="three-canvas" aria-label="Animasi Bola Dunia 3D MR.Y OFFICIAL"></canvas>
 </div>
 </div>
 </section>
@@ -362,7 +360,7 @@ b[data-t]{font-weight:inherit}
 <ol class="steps" id="steps"></ol>
 </div>
 <aside class="about-side">
-<p class="muted small" data-t="about.bio">Saya Nilwan Yudi dari Kab. Pinrang, Sulawesi Selatan. Pribadi disiplin, jujur, dan bertanggung jawab, berpengalaman di bidang pengawasan konstruksi, admistrasi, costumer service, Marketing, kreator video, Pembuatan Website, pembuatan Aplikasi sederhana. Mampu bekerja individu maupun tim.</p>
+<p class="muted small" data-t="about.bio">Saya Nilwan Yudi dari Kab. Pinrang, Sulawesi Selatan. Pribadi disiplin, jujur, dan bertanggung jawab, berpengalaman di bidang pengawasan konstruksi, administrasi, customer service, Marketing, kreator video, Pembuatan Website, pembuatan Aplikasi sederhana. Mampu bekerja individu maupun tim.</p>
 <div class="quote">
 <span class="qm">&ldquo;</span>
 <p data-t="about.quote">Bekerja jujur, disiplin, dan fokus pada hasil.</p>
@@ -427,7 +425,7 @@ b[data-t]{font-weight:inherit}
   "profile": {
     "name": "Nilwan Yudi",
     "role": "Marketing, Pengawas & Video Creator",
-    "intro": "Pribadi disiplin, jujur, dan bertanggung jawab, berpengalaman di bidang pengawasan konstruksi, admistrasi, costumer service, Marketing, kreator video, Pembuatan Website, pembuatan Aplikasi sederhana. Mampu bekerja individu maupun tim.",
+    "intro": "Pribadi disiplin, jujur, dan bertanggung jawab, berpengalaman di bidang pengawasan konstruksi, administrasi, customer service, Marketing, kreator video, Pembuatan Website, pembuatan Aplikasi sederhana. Mampu bekerja individu maupun tim.",
     "stats": [
       { "n": 3, "suffix": "+", "label": "Tahun Pengalaman" },
       { "n": 6, "suffix": "", "label": "Tempat Kerja & Usaha" },
@@ -436,7 +434,7 @@ b[data-t]{font-weight:inherit}
   },
   "categories": ["SEMUA", "SERTIFIKAT", "SERTIFIKAT KOMPETENSI", "PENGHARGAAN"],
   "projects": [ 
-    { "id": 8, "title": "Surat Tanda Seleai Belajar", "type": "Program Kerja Komputer Aplikasi Perkantoran", "cat": "SERTIFIKAT KOMPETENSI", "year": 2024, "theme": "red", "images": ["07.jpg"] },
+    { "id": 8, "title": "Kreator Konten Y Official", "type": "Video Editing & Digital Content", "cat": "KARYA", "year": 2025, "theme": "red", "images": ["07.jpg", "077.jpg"] },
     { "id": 9, "title": "Sertifikat Kompetensi LSK TIK", "type": "Kompetensi Bidang Teknologi Informasi", "cat": "SERTIFIKAT KOMPETENSI", "year": 2024, "theme": "teal", "images": ["08.jpg"] },
     { "id": 10, "title": "Diploma in Occupational Safety", "type": "UniAthena Certification", "cat": "SERTIFIKAT KOMPETENSI", "year": 2026, "theme": "amber", "images": ["10.jpg"] },
     { "id": 11, "title": "Sertifikat Penghargaan PLN", "type": "PT PLN (Persero) UP3 Pare-Pare", "cat": "PENGHARGAAN", "year": 2024, "theme": "teal", "images": ["11.jpg"] },
@@ -475,16 +473,14 @@ b[data-t]{font-weight:inherit}
   ],
   "toolkit": [
     "Customer Service",
-    "Developer Website",
     "Marketing",
     "Video Editing & Content Creating",
-    "Pelayanan",
+    "Distro & Retail Management",
     "Pengawasan Lapangan",
     "Voli",
     "Dayung",
     "Lari",
-    "Menembak"'
-    "Renang"
+    "Menembak"
   ],
   "software": [
     { "short": "W", "name": "Microsoft Word", "color": "#4aa8ff" },
@@ -501,7 +497,7 @@ b[data-t]{font-weight:inherit}
   "journey": [
     { "years": "2019 - 2025", "role": "Kreator Video Digital", "place": "YouTube (Y Official), TikTok, IG", "text": "Memproduksi konten video kreatif, editing, dan manajemen media sosial." },
     { "years": "APR – MEI 2024", "role": "Staff Customer Service", "place": "PT PLN (Persero)", "text": "Memberikan pelayanan terbaik kepada pelanggan sesuai standar PLN." },
-    { "years": "JAN 2025 - APR 2025", "role": "CREW", "place": "PT.BGI", "text": "Membantu menyelesaikan tugas di dalam sebuah Proyek Konstruksi." },
+    { "years": "JAN 2025 - APR 2025", "role": "CREW", "place": "PT.BGI", "text": "Pekerja kasar." },
     { "years": "JULY 2025 - OKT 2025", "role": "Pengawas / Operational", "place": "PT. BMM", "text": "Mengawasi pelaksanaan operasional dan alur kerja di lapangan." },
     { "years": "JAN 2026 – MEI 2026", "role": "Administrasi", "place": "PT ASN", "text": "Mengawasi dan menyusun laporan,mendata karyawan." },
     { "years": "JUL – SEP 2026", "role": "Sales Lapangan", "place": "NSS Honda Parepare", "text": "Penjualan, pemasaran, dan follow-up calon pelanggan." },
@@ -1336,93 +1332,222 @@ b[data-t]{font-weight:inherit}
       menu.classList.remove('open');
     }));
   }
-  /* Animasi Pohon Tumbuh dengan Slider Geser Manual */
-  function initGrowingTree() {
-    const canvas = $('#growingTree'), stage = $('#treeStage'), slider = $('#treeProgressSlider');
-    if (!canvas || !stage) return;
-    const ctx = canvas.getContext('2d');
-    let width = 0, height = 0, startAt = 0, raf = 0, visible = false, isManual = false;
-    const branches = [];
-    function resize() {
-      const rect = stage.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio || 1, 2);
-      width = Math.max(1, rect.width);
-      height = Math.max(1, rect.height);
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      buildBranches();
-      draw(slider ? slider.value / 100 : 1);
-    }
-    function buildBranches() {
-      branches.length = 0;
-      function branch(x, y, angle, length, depth, delay) {
-        if (depth <= 0 || length < 3) return;
-        const endX = x + Math.cos(angle) * length;
-        const endY = y + Math.sin(angle) * length;
-        branches.push({x,y,endX,endY,angle,length,depth,delay});
-        const spread = .38 + depth * .012;
-        branch(endX,endY,angle-spread,length*.74,depth-1,delay+.075);
-        branch(endX,endY,angle+spread,length*.72,depth-1,delay+.09);
+  
+  /* Animasi 3D Earth Globe & Asymmetric Asteroid Belt */
+  function initGlobeScene() {
+    const container = $('#treeStage');
+    const canvas = $('#three-canvas');
+    if (!container || !canvas) return;
+
+    let scene, camera, renderer, controls, animationFrameId;
+    let earthGroup, earthMesh, cloudMesh, meteorGroup, starField;
+    const initialCamPos = [0, 1.5, 9.5];
+    const meteorCount = 50;
+    const meteorData = [];
+
+    function createUniqueAsymmetricGeometry() {
+      const detail = Math.random() > 0.5 ? 1 : 2;
+      const geo = new THREE.IcosahedronGeometry(0.25, detail);
+      const posAttr = geo.attributes.position;
+      const vertex = new THREE.Vector3();
+
+      const seedX = Math.random() * 50;
+      const seedY = Math.random() * 50;
+      const seedZ = Math.random() * 50;
+
+      const stretchX = 0.6 + Math.random() * 0.9;
+      const stretchY = 0.6 + Math.random() * 0.9;
+      const stretchZ = 0.6 + Math.random() * 0.9;
+
+      for (let i = 0; i < posAttr.count; i++) {
+        vertex.fromBufferAttribute(posAttr, i);
+        vertex.x *= stretchX;
+        vertex.y *= stretchY;
+        vertex.z *= stretchZ;
+
+        const n1 = Math.sin(vertex.x * 5 + seedX) * Math.cos(vertex.y * 7 + seedY) * 0.12;
+        const n2 = Math.cos(vertex.z * 8 + seedZ) * Math.sin(vertex.x * 6) * 0.08;
+        const crater = Math.sin(vertex.y * 12 + seedX) * Math.cos(vertex.z * 12 + seedY) * 0.05;
+
+        const displacement = 1 + n1 + n2 - Math.abs(crater);
+        vertex.multiplyScalar(displacement);
+        posAttr.setXYZ(i, vertex.x, vertex.y, vertex.z);
       }
-      branch(width*.5,height*.84,-Math.PI/2,Math.min(height*.22,105),9,0);
+      geo.computeVertexNormals();
+      return geo;
     }
-    function draw(progress) {
-      ctx.clearRect(0,0,width,height);
-      const glow=ctx.createRadialGradient(width*.5,height*.77,2,width*.5,height*.77,height*.58);
-      glow.addColorStop(0,'rgba(85,160,82,.18)');
-      glow.addColorStop(1,'rgba(85,160,82,0)');
-      ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
-      const ground=height*.84;
-      ctx.fillStyle='#a4c77c';ctx.beginPath();ctx.ellipse(width*.5,ground+2,5,2.5,0,0,Math.PI*2);ctx.fill();
-      branches.forEach((b)=>{
-        const local=Math.max(0,Math.min(1,(progress-b.delay)/.48));
-        if(local<=0)return;
-        const sway=Math.sin(performance.now()/850+b.depth)*Math.min(2.5,10/b.depth);
-        const ex=b.x+(b.endX-b.x)*local+sway*local;
-        const ey=b.y+(b.endY-b.y)*local;
-        ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.quadraticCurveTo((b.x+ex)/2+sway,(b.y+ey)/2,ex,ey);
-        ctx.strokeStyle=b.depth>5?'#805637':b.depth>3?'#527d45':'#719b56';
-        ctx.lineWidth=Math.max(1,b.depth*1.05);ctx.lineCap='round';ctx.stroke();
-        if(b.depth<=4 && local>.94){
-          const leaf=ctx.createRadialGradient(ex,ey,1,ex,ey,12);
-          leaf.addColorStop(0,'#b5dc78');leaf.addColorStop(1,'rgba(77,151,75,0)');
-          ctx.fillStyle=leaf;ctx.beginPath();ctx.ellipse(ex,ey,8,4,b.angle,0,Math.PI*2);ctx.fill();
-        }
+
+    function createSurfaceTextTexture(text) {
+      const cv = document.createElement('canvas');
+      cv.width = 2048; cv.height = 1024;
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      ctx.font = 'bold 94px "Times New Roman", Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const posX = cv.width / 2, posY = cv.height / 2;
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 2;
+      ctx.strokeText(text, posX, posY);
+
+      ctx.fillStyle = '#ff0000';
+      ctx.fillText(text, posX, posY);
+
+      const texture = new THREE.CanvasTexture(cv);
+      texture.anisotropy = 16;
+      return texture;
+    }
+
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 400;
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(initialCamPos[0], initialCamPos[1], initialCamPos[2]);
+    camera.lookAt(0, 0, 0);
+
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setClearColor(0x02040a, 1);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
+    renderer.setSize(width, height);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+
+    if (typeof THREE.OrbitControls === 'function') {
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxDistance = 22;
+      controls.minDistance = 4;
+    }
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.3));
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2.4);
+    sunLight.position.set(10, 10, 10);
+    scene.add(sunLight);
+
+    earthGroup = new THREE.Group();
+    const textureLoader = new THREE.TextureLoader();
+    const earthTexture = textureLoader.load('https://cdn.jsdelivr.net/npm/three@0.146.0/examples/textures/planets/earth_atmos_2048.jpg');
+
+    const earthRadius = 1.8;
+    const earthGeo = new THREE.SphereGeometry(earthRadius, 64, 64);
+    const earthMat = new THREE.MeshStandardMaterial({ map: earthTexture, roughness: 0.5, metalness: 0.1 });
+    earthMesh = new THREE.Mesh(earthGeo, earthMat);
+    earthGroup.add(earthMesh);
+
+    const textTexture = createSurfaceTextTexture('MR.Y OFFICIAL');
+    const textSurfaceGeo = new THREE.SphereGeometry(earthRadius + 0.008, 64, 64);
+    const textSurfaceMat = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, depthWrite: false });
+    const textSurfaceMesh = new THREE.Mesh(textSurfaceGeo, textSurfaceMat);
+    earthGroup.add(textSurfaceMesh);
+
+    const cloudGeo = new THREE.SphereGeometry(earthRadius + 0.035, 64, 64);
+    const cloudTexture = textureLoader.load('https://cdn.jsdelivr.net/npm/three@0.146.0/examples/textures/planets/earth_clouds_1024.png');
+    const cloudMat = new THREE.MeshStandardMaterial({ map: cloudTexture, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending });
+    cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+    earthGroup.add(cloudMesh);
+
+    scene.add(earthGroup);
+
+    meteorGroup = new THREE.Group();
+    const baseColors = [0x2c2d30, 0x423d38, 0x1d1e22, 0x3b3c40];
+
+    for (let i = 0; i < meteorCount; i++) {
+      const geo = createUniqueAsymmetricGeometry();
+      const isFlaming = (i % 6 === 0);
+      let mat;
+      if (isFlaming) {
+        mat = new THREE.MeshStandardMaterial({ color: 0x4a1100, emissive: 0xff4500, emissiveIntensity: 1.0, roughness: 0.4, flatShading: true });
+      } else {
+        mat = new THREE.MeshStandardMaterial({ color: baseColors[i % baseColors.length], roughness: 0.9, metalness: 0.2, flatShading: true });
+      }
+
+      const meteor = new THREE.Mesh(geo, mat);
+      const scaleBase = isFlaming ? (0.8 + Math.random() * 0.7) : (0.4 + Math.random() * 1.1);
+      meteor.scale.set(scaleBase, scaleBase, scaleBase);
+
+      const radius = 3.8 + Math.random() * 3.5;
+      const angle = Math.random() * Math.PI * 2;
+      const yOffset = (Math.random() - 0.5) * 3.2;
+
+      meteor.position.set(Math.cos(angle) * radius, yOffset, Math.sin(angle) * radius);
+      meteorData.push({
+        mesh: meteor, radius, angle, yOffset,
+        orbitSpeed: (0.12 + Math.random() * 0.48) * (Math.random() > 0.5 ? 1 : -1),
+        rotXSpeed: (0.3 + Math.random() * 2.2) * (Math.random() > 0.5 ? 1 : -1),
+        rotYSpeed: (0.3 + Math.random() * 2.2) * (Math.random() > 0.5 ? 1 : -1),
+        rotZSpeed: (0.3 + Math.random() * 2.2) * (Math.random() > 0.5 ? 1 : -1),
+        isFlaming
       });
-      if(progress>.68){
-        const leafProgress=Math.min(1,(progress-.68)/.3);
-        for(let i=0;i<42*leafProgress;i++){
-          const a=i*2.399, radius=12+((i*37)%100)/100*Math.min(width,height)*.22;
-          const x=width*.5+Math.cos(a)*radius, y=height*.39+Math.sin(a)*radius*.56;
-          ctx.save();ctx.translate(x,y);ctx.rotate(a);
-          ctx.fillStyle=['#7eae58','#9cc96b','#4e8d50','#b4d77b'][i%4];
-          ctx.globalAlpha=.78;ctx.beginPath();ctx.ellipse(0,0,5,2.8,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      meteorGroup.add(meteor);
+    }
+    scene.add(meteorGroup);
+
+    const starCount = 600;
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i += 3) {
+      starPos[i] = (Math.random() - 0.5) * 60;
+      starPos[i + 1] = (Math.random() - 0.5) * 60;
+      starPos[i + 2] = (Math.random() - 0.5) * 60;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.7 });
+    starField = new THREE.Points(starGeo, starMat);
+    scene.add(starField);
+
+    const clock = new THREE.Clock();
+    function animate() {
+      animationFrameId = requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      if (earthGroup) earthGroup.rotation.y += delta * 0.18;
+
+      for (let i = 0; i < meteorCount; i++) {
+        const d = meteorData[i];
+        d.angle += delta * d.orbitSpeed;
+        d.mesh.position.x = Math.cos(d.angle) * d.radius;
+        d.mesh.position.z = Math.sin(d.angle) * d.radius;
+        d.mesh.position.y = d.yOffset + Math.sin(elapsed * 0.8 + i) * 0.3;
+
+        d.mesh.rotation.x += delta * d.rotXSpeed;
+        d.mesh.rotation.y += delta * d.rotYSpeed;
+        d.mesh.rotation.z += delta * d.rotZSpeed;
+
+        if (d.isFlaming) {
+          d.mesh.material.emissiveIntensity = 0.7 + Math.sin(elapsed * 4 + i) * 0.4;
         }
       }
+
+      if (starField) starField.rotation.y = elapsed * 0.015;
+      if (controls) controls.update();
+      renderer.render(scene, camera);
     }
-    function animate(now) {
-      if(!visible || isManual) return;
-      const progress=Math.min(1,(now-startAt)/5200);
-      if (slider) slider.value = Math.round(progress * 100);
-      draw(progress);
-      if(progress < 1) raf = requestAnimationFrame(animate);
-    }
-    slider?.addEventListener('input', (e) => {
-      isManual = true;
-      cancelAnimationFrame(raf);
-      const val = e.target.value / 100;
-      draw(val);
+    animate();
+
+    $('#reset-cam-btn')?.addEventListener('click', () => {
+      if (camera && controls) {
+        camera.position.set(initialCamPos[0], initialCamPos[1], initialCamPos[2]);
+        controls.target.set(0, 0, 0);
+        controls.update();
+      }
     });
-    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{
-      visible=entry.isIntersecting;
-      if(visible && !isManual){if(!startAt)startAt=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(animate);}
-      else cancelAnimationFrame(raf);
-    }),{threshold:.15});
-    observer.observe(stage);
-    if('ResizeObserver' in window)new ResizeObserver(resize).observe(stage);else addEventListener('resize',resize);
-    resize();
+
+    window.addEventListener('resize', () => {
+      const w = container.clientWidth || 600;
+      const h = container.clientHeight || 400;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
   }
+
   function initContact() {
     const form = $('#contactForm'), msg = $('#formMsg');
     $('#openForm').addEventListener('click', () => {
@@ -1494,7 +1619,7 @@ b[data-t]{font-weight:inherit}
     initLightbox();
     initReveal();
     initNav();
-    initGrowingTree();
+    initGlobeScene();
     initContact();
     initGhosts();
     if (window.PixelScatter) new PixelScatter($('#photoWrap'), $('#profileImg'));
